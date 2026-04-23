@@ -169,6 +169,17 @@ export function useChatBusiness() {
       });
     });
 
+    chatService.on(WS_MESSAGE_TYPES.BATCH_MESSAGE_READ_ACK, (payload) => {
+      if (payload && payload.sessionId && payload.messageIds) {
+        payload.messageIds.forEach(messageId => {
+          dataLayer.updateMessage(payload.sessionId, messageId, {
+            status: messageStatuses.READ
+          });
+        });
+        console.log(`批量已读确认: ${payload.sessionId}, 数量: ${payload.count}`);
+      }
+    });
+
     chatService.on(WS_MESSAGE_TYPES.AGENT_STATUS_CHANGED, (payload) => {
       if (payload && payload.status) {
         currentAgentStatus.value = payload.status;
@@ -201,14 +212,7 @@ export function useChatBusiness() {
         }
       }
       
-      const currentMessages = dataLayer.getMessagesBySessionId(sessionId);
-      const lastUserMessage = currentMessages
-        .filter(m => m.sender === messageSenders.USER && m.status !== messageStatuses.READ)
-        .slice(-1)[0];
-      
-      if (lastUserMessage) {
-        chatService.markMessageAsRead(sessionId, lastUserMessage.id);
-      }
+      chatService.markAllMessagesAsRead(sessionId);
     }
   }
 

@@ -62,6 +62,9 @@ module.exports = {
     AGENT_STATUS_UPDATE: 'agent_status_update',
     AGENT_STATUS_CHANGED: 'agent_status_changed',
     
+    BATCH_MESSAGE_READ: 'batch_message_read',
+    BATCH_MESSAGE_READ_ACK: 'batch_message_read_ack',
+    
     ERROR: 'error'
   },
 
