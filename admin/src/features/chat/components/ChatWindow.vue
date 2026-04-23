@@ -128,6 +128,7 @@ watch(() => props.messages, () => {
 
 watch(() => props.session, () => {
   scrollToBottom();
+  inputValue.value = '';
 });
 
 function handleKeyPress(event) {

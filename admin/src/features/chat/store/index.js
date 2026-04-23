@@ -1,39 +1,52 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useDataLayer } from './dataLayer';
-import { useBusinessLayer } from './businessLayer';
+import { reactive, computed } from 'vue';
+import { useChatData } from './chatData';
+import { useChatBusiness } from './chatBusiness';
 import { useChatService } from '../services/chatService';
+import { sessionStatuses, messageTypes, messageSenders, messageStatuses } from '../types/messageTypes';
 
-const isInitialized = ref(false);
-const currentAgentId = ref('agent-1');
+const state = reactive({
+  isInitialized: false,
+  currentAgentId: 'agent-1',
+  selectedSessionId: null
+});
 
-export function useOrchestrationLayer() {
-  const dataLayer = useDataLayer();
-  const businessLayer = useBusinessLayer();
+const getters = {
+  isInitialized: computed(() => state.isInitialized),
+  currentAgentId: computed(() => state.currentAgentId),
+  selectedSessionId: computed(() => state.selectedSessionId)
+};
+
+export function useChatStore() {
+  const dataLayer = useChatData();
+  const businessLayer = useChatBusiness();
   const chatService = useChatService();
 
-  const sessions = computed(() => dataLayer.sessions);
-  const messages = computed(() => dataLayer.messages);
-  const waitingSessions = computed(() => dataLayer.waitingSessions);
-  const activeSessions = computed(() => dataLayer.activeSessions);
-  const closedSessions = computed(() => dataLayer.closedSessions);
-  const totalUnreadCount = computed(() => dataLayer.totalUnreadCount);
+  const sessions = computed(() => dataLayer.sessions.value);
+  const messages = computed(() => dataLayer.messages.value);
+  const waitingSessions = computed(() => dataLayer.waitingSessions.value);
+  const activeSessions = computed(() => dataLayer.activeSessions.value);
+  const closedSessions = computed(() => dataLayer.closedSessions.value);
+  const totalUnreadCount = computed(() => dataLayer.totalUnreadCount.value);
 
-  const selectedSession = computed(() => businessLayer.selectedSession);
-  const selectedSessionId = computed(() => businessLayer.selectedSessionId);
-  const currentMessages = computed(() => businessLayer.currentMessages);
-  const isSending = computed(() => businessLayer.isSending);
-  const inputMessage = computed(() => businessLayer.inputMessage);
-  const canSendMessage = computed(() => businessLayer.canSendMessage);
-  const isWebSocketConnected = computed(() => chatService.isConnected);
+  const selectedSession = computed(() => businessLayer.selectedSession.value);
+  const currentMessages = computed(() => businessLayer.currentMessages.value);
+  const isSending = computed(() => businessLayer.isSending.value);
+  const inputMessage = computed(() => businessLayer.inputMessage.value);
+  const canSendMessage = computed(() => businessLayer.canSendMessage.value);
+  const isWebSocketConnected = computed(() => chatService.isConnected.value);
 
-  async function initializeWorkspace(agentId) {
-    if (isInitialized.value) return;
+  const constants = {
+    sessionStatuses,
+    messageTypes,
+    messageSenders,
+    messageStatuses
+  };
 
-    currentAgentId.value = agentId;
+  async function initialize() {
+    if (state.isInitialized) return;
     
-    dataLayer.initializeData(agentId);
-    dataLayer.sortSessionsByTime();
-
+    dataLayer.initializeData(state.currentAgentId);
+    
     chatService.setMessageHandler((message) => {
       businessLayer.handleIncomingMessage(message);
     });
@@ -43,31 +56,28 @@ export function useOrchestrationLayer() {
     });
 
     try {
-      await chatService.connectWebSocket(agentId);
+      await chatService.connectWebSocket(state.currentAgentId);
     } catch (error) {
       console.error('WebSocket连接失败，使用模拟数据:', error);
     }
 
-    isInitialized.value = true;
+    state.isInitialized = true;
   }
 
   async function selectSession(sessionId) {
+    state.selectedSessionId = sessionId;
     return businessLayer.selectSession(sessionId);
   }
 
   async function acceptSession(sessionId) {
-    const result = await businessLayer.acceptSession(sessionId, currentAgentId.value);
-    
+    const result = await businessLayer.acceptSession(sessionId, state.currentAgentId);
     dataLayer.sortSessionsByTime();
-    
     return result;
   }
 
   async function closeSession(sessionId) {
     const result = await businessLayer.closeSession(sessionId);
-    
     dataLayer.sortSessionsByTime();
-    
     return result;
   }
 
@@ -108,8 +118,8 @@ export function useOrchestrationLayer() {
   }
 
   async function reconnectWebSocket() {
-    if (isInitialized.value) {
-      await chatService.connectWebSocket(currentAgentId.value);
+    if (state.isInitialized) {
+      await chatService.connectWebSocket(state.currentAgentId);
     }
   }
 
@@ -117,18 +127,9 @@ export function useOrchestrationLayer() {
     chatService.disconnectWebSocket();
   }
 
-  onMounted(() => {
-    initializeWorkspace(currentAgentId.value);
-  });
-
-  onUnmounted(() => {
-    disconnectWebSocket();
-    isInitialized.value = false;
-  });
-
   return {
-    isInitialized,
-    currentAgentId,
+    state,
+    getters,
     sessions,
     messages,
     waitingSessions,
@@ -136,13 +137,14 @@ export function useOrchestrationLayer() {
     closedSessions,
     totalUnreadCount,
     selectedSession,
-    selectedSessionId,
+    selectedSessionId: getters.selectedSessionId,
     currentMessages,
     isSending,
     inputMessage,
     canSendMessage,
     isWebSocketConnected,
-    initializeWorkspace,
+    constants,
+    initialize,
     selectSession,
     acceptSession,
     closeSession,
@@ -158,4 +160,4 @@ export function useOrchestrationLayer() {
   };
 }
 
-export default useOrchestrationLayer;
+export default useChatStore;

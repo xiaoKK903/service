@@ -1,5 +1,5 @@
 <script setup>
-import AdminView from './views/AdminView.vue';
+import { AdminView } from './features/chat';
 </script>
 
 <template>

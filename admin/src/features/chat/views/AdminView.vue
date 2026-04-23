@@ -41,7 +41,7 @@
 import { computed, onMounted } from 'vue';
 import SessionList from '../components/SessionList.vue';
 import ChatWindow from '../components/ChatWindow.vue';
-import { useChatStore } from '../store/chatStore';
+import { useChatStore } from '../store';
 
 const store = useChatStore();
 

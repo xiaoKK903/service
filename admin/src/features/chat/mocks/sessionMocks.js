@@ -1,4 +1,4 @@
-import { createMessage, createSession, messageTypes, messageSenders, messageStatuses, sessionStatuses } from './messageTypes';
+import { createMessage, createSession, messageTypes, messageSenders, messageStatuses, sessionStatuses } from '../types/messageTypes';
 
 export const mockAgents = [
   { id: 'agent-1', name: '张客服', avatar: null, status: 'online' },
