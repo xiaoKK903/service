@@ -46,7 +46,7 @@
       </div>
 
       <QuickReplyPanel 
-        v-if="showQuickReplyPanel && quickReplies.length > 0"
+        v-if="showQuickReplyPanel"
         :quick-replies="quickReplies"
         @select="handleQuickReplySelect"
         @open-manager="$emit('open-quick-reply-manager')"

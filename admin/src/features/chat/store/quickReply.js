@@ -14,6 +14,13 @@ function setupEventHandlers() {
   if (handlersSetup) return;
   handlersSetup = true;
 
+  chatService.on(WS_MESSAGE_TYPES.AUTH_SUCCESS, () => {
+    if (!isInitialized.value) {
+      chatService.getQuickReplyList();
+      isInitialized.value = true;
+    }
+  });
+
   chatService.on(WS_MESSAGE_TYPES.QUICK_REPLY_LIST_RESPONSE, (payload) => {
     if (payload && payload.quickReplies) {
       quickReplies.value = payload.quickReplies;
@@ -58,11 +65,12 @@ function useQuickReplyStore() {
     return [...quickReplies.value].sort((a, b) => a.sortOrder - b.sortOrder);
   });
 
-  async function initialize() {
-    if (isInitialized.value) return;
-    isLoading.value = true;
-    chatService.getQuickReplyList();
-    isInitialized.value = true;
+  function initialize() {
+    setupEventHandlers();
+    if (chatService.isAuthenticated.value && !isInitialized.value) {
+      chatService.getQuickReplyList();
+      isInitialized.value = true;
+    }
   }
 
   function getQuickReplyById(id) {

@@ -104,6 +104,10 @@ export function useChatStore() {
       const existingMessage = messages.value.find(m => m.id === payload.id);
       if (!existingMessage) {
         messages.value.push(payload);
+        
+        if (payload.sender === messageSenders.AGENT && currentSession.value) {
+          chatService.markMessageAsRead(currentSession.value.id, payload.id);
+        }
       }
       console.log('收到消息:', payload);
     });
