@@ -1,5 +1,5 @@
 import { ref, computed, onUnmounted } from 'vue';
-import { messageSenders, messageStatuses, messageTypes } from '../types/messageTypes';
+import { messageSenders, messageStatuses, messageTypes, agentStatuses } from '../types/messageTypes';
 import { useChatService } from '../services/chatService';
 
 const messages = ref([]);
@@ -7,6 +7,7 @@ const isLoading = ref(false);
 const isSending = ref(false);
 const currentSession = ref(null);
 const isInitialized = ref(false);
+const currentAgentStatus = ref(null);
 
 const currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 const currentUserName = `用户${currentUserId.substr(-4)}`;
@@ -125,6 +126,13 @@ export function useChatStore() {
         messages.value[index].status = messageStatuses.READ;
       }
     });
+
+    chatService.on(WS_MESSAGE_TYPES.AGENT_STATUS_CHANGED, (payload) => {
+      if (payload && payload.status) {
+        currentAgentStatus.value = payload.status;
+        console.log('客服状态变化:', payload);
+      }
+    });
   }
 
   async function initializeStore() {
@@ -213,6 +221,7 @@ export function useChatStore() {
     isLoading,
     isSending,
     currentSession,
+    currentAgentStatus,
     currentUserId,
     currentUserName,
     sentMessages,
@@ -221,6 +230,7 @@ export function useChatStore() {
     hasMessages,
     canSendMessage,
     isInitialized,
+    agentStatuses,
     initializeStore,
     addMessage,
     updateMessage,

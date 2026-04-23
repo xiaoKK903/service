@@ -68,5 +68,11 @@ module.exports = {
   clientTypes: {
     USER: 'user',
     AGENT: 'agent'
+  },
+
+  agentStatuses: {
+    IDLE: 'idle',
+    BUSY: 'busy',
+    OFFLINE: 'offline'
   }
 };
