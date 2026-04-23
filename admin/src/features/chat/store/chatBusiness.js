@@ -1,14 +1,14 @@
 import { ref, computed } from 'vue';
 import { sessionStatuses, messageStatuses, messageSenders, messageTypes, createMessage } from '../types/messageTypes';
-import { useDataLayer } from './dataLayer';
+import { useChatData } from './chatData';
 import { useChatService } from '../services/chatService';
 
 const selectedSessionId = ref(null);
 const isSending = ref(false);
 const inputMessage = ref('');
 
-export function useBusinessLayer() {
-  const dataLayer = useDataLayer();
+export function useChatBusiness() {
+  const dataLayer = useChatData();
   const chatService = useChatService();
 
   const selectedSession = computed(() => {
@@ -238,4 +238,4 @@ export function useBusinessLayer() {
   };
 }
 
-export default useBusinessLayer;
+export default useChatBusiness;

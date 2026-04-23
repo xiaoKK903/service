@@ -6,7 +6,7 @@ const sessions = ref([]);
 const messages = ref({});
 const currentAgent = ref(null);
 
-export function useDataLayer() {
+export function useChatData() {
   const waitingSessions = computed(() => {
     return sessions.value.filter(s => s.status === sessionStatuses.WAITING);
   });
@@ -141,4 +141,4 @@ export function useDataLayer() {
   };
 }
 
-export default useDataLayer;
+export default useChatData;
