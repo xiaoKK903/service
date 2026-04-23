@@ -29,21 +29,37 @@
         :messages="currentMessages"
         :is-sending="isSending"
         :can-send="canSendMessage"
+        :quick-replies="quickReplies"
         @send="handleSendMessage"
         @close="handleCloseSession"
         @accept="handleAcceptSession"
+        @open-quick-reply-manager="showQuickReplyManager = true"
       />
     </main>
+
+    <QuickReplyManager 
+      :visible="showQuickReplyManager"
+      :quick-replies="quickReplies"
+      @close="showQuickReplyManager = false"
+      @create="handleCreateQuickReply"
+      @update="handleUpdateQuickReply"
+      @delete="handleDeleteQuickReply"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import SessionList from '../components/SessionList.vue';
 import ChatWindow from '../components/ChatWindow.vue';
+import QuickReplyManager from '../components/QuickReplyManager.vue';
 import { useChatStore } from '../store';
+import { useQuickReplyStore } from '../store/quickReply';
 
 const store = useChatStore();
+const quickReplyStore = useQuickReplyStore();
+
+const showQuickReplyManager = ref(false);
 
 const sessions = computed(() => store.sessions.value);
 const selectedSessionId = computed(() => store.selectedSessionId.value);
@@ -53,6 +69,7 @@ const totalUnreadCount = computed(() => store.totalUnreadCount.value);
 const isSending = computed(() => store.isSending.value);
 const canSendMessage = computed(() => store.canSendMessage.value);
 const isWebSocketConnected = computed(() => store.isWebSocketConnected.value);
+const quickReplies = computed(() => quickReplyStore.sortedQuickReplies.value);
 
 const waitingCount = computed(() => store.waitingSessions.value.length);
 const activeCount = computed(() => store.activeSessions.value.length);
@@ -78,8 +95,21 @@ async function handleSendMessage(content) {
   await store.sendMessage();
 }
 
+function handleCreateQuickReply(data) {
+  quickReplyStore.createQuickReply(data);
+}
+
+function handleUpdateQuickReply(data) {
+  quickReplyStore.updateQuickReply(data);
+}
+
+function handleDeleteQuickReply(id) {
+  quickReplyStore.deleteQuickReply(id);
+}
+
 onMounted(() => {
   store.initialize();
+  quickReplyStore.initialize();
 });
 </script>
 

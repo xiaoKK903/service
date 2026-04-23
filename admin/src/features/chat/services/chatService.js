@@ -22,6 +22,18 @@ const WS_MESSAGE_TYPES = {
   MESSAGE_RECEIVE: 'message_receive',
   MESSAGE_HISTORY: 'message_history',
   
+  QUICK_REPLY_LIST: 'quick_reply_list',
+  QUICK_REPLY_LIST_RESPONSE: 'quick_reply_list_response',
+  QUICK_REPLY_CREATE: 'quick_reply_create',
+  QUICK_REPLY_CREATED: 'quick_reply_created',
+  QUICK_REPLY_UPDATE: 'quick_reply_update',
+  QUICK_REPLY_UPDATED: 'quick_reply_updated',
+  QUICK_REPLY_DELETE: 'quick_reply_delete',
+  QUICK_REPLY_DELETED: 'quick_reply_deleted',
+  
+  AGENT_STATUS_UPDATE: 'agent_status_update',
+  AGENT_STATUS_CHANGED: 'agent_status_changed',
+  
   ERROR: 'error'
 };
 
@@ -308,6 +320,45 @@ export function useChatService() {
     });
   }
 
+  function getQuickReplyList() {
+    return send({
+      type: WS_MESSAGE_TYPES.QUICK_REPLY_LIST,
+      payload: {}
+    });
+  }
+
+  function createQuickReply({ keyword, content, sortOrder }) {
+    return send({
+      type: WS_MESSAGE_TYPES.QUICK_REPLY_CREATE,
+      payload: {
+        keyword,
+        content,
+        sortOrder
+      }
+    });
+  }
+
+  function updateQuickReply({ id, keyword, content, sortOrder }) {
+    return send({
+      type: WS_MESSAGE_TYPES.QUICK_REPLY_UPDATE,
+      payload: {
+        id,
+        keyword,
+        content,
+        sortOrder
+      }
+    });
+  }
+
+  function deleteQuickReply(id) {
+    return send({
+      type: WS_MESSAGE_TYPES.QUICK_REPLY_DELETE,
+      payload: {
+        id
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -328,7 +379,11 @@ export function useChatService() {
     acceptSession,
     closeSession,
     markMessageAsRead,
-    requestMessageHistory
+    requestMessageHistory,
+    getQuickReplyList,
+    createQuickReply,
+    updateQuickReply,
+    deleteQuickReply
   };
 }
 
