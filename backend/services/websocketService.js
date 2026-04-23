@@ -4,6 +4,8 @@ const sessionService = require('./sessionService');
 const messageService = require('./messageService');
 const quickReplyService = require('./quickReplyService');
 const agentService = require('./agentService');
+const queueService = require('./queueService');
+const readReceiptService = require('./readReceiptService');
 
 class WebSocketService {
   constructor() {
@@ -93,6 +95,10 @@ class WebSocketService {
         
         case wsMessageTypes.AGENT_STATUS_UPDATE:
           this.handleAgentStatusUpdate(ws, payload);
+          break;
+        
+        case wsMessageTypes.BATCH_MESSAGE_READ:
+          this.handleBatchMessageRead(ws, payload);
           break;
         
         default:
@@ -198,7 +204,7 @@ class WebSocketService {
     this.broadcastSessionsToAgents();
 
     if (session.status === sessionStatuses.WAITING) {
-      const bestAgent = agentService.getBestIdleAgent();
+      const bestAgent = queueService.getAvailableAgentForNewSession();
       if (bestAgent) {
         this.assignSessionToAgent(session.id, bestAgent.id);
       }
@@ -694,14 +700,9 @@ class WebSocketService {
   }
 
   tryAssignWaitingSessions() {
-    const availableAgents = agentService.getIdleAgents();
-    if (availableAgents.length === 0) {
-      return;
-    }
-
     const waitingSessions = sessionService.getWaitingSessions();
     for (const session of waitingSessions) {
-      const bestAgent = agentService.getBestIdleAgent();
+      const bestAgent = queueService.getAvailableAgentForNewSession();
       if (bestAgent) {
         this.assignSessionToAgent(session.id, bestAgent.id);
       } else {
@@ -753,6 +754,74 @@ class WebSocketService {
 
     console.log(`会话自动分配: ${sessionId} to ${agentId}`);
     return session;
+  }
+
+  handleBatchMessageRead(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    const { sessionId } = payload;
+    if (!sessionId) {
+      this.sendError(ws, '缺少必要参数');
+      return;
+    }
+
+    const session = sessionService.getSession(sessionId);
+    if (!session) {
+      this.sendError(ws, '会话不存在');
+      return;
+    }
+
+    if (clientInfo.clientType === clientTypes.AGENT) {
+      const markedMessages = readReceiptService.markAllUserMessagesAsRead(sessionId);
+      
+      if (markedMessages.length > 0) {
+        this.send(ws, {
+          type: wsMessageTypes.BATCH_MESSAGE_READ_ACK,
+          payload: {
+            sessionId,
+            messageIds: markedMessages.map(m => m.id),
+            count: markedMessages.length
+          }
+        });
+
+        if (session.userId) {
+          markedMessages.forEach(message => {
+            this.sendToUser(session.userId, {
+              type: wsMessageTypes.MESSAGE_READ,
+              payload: { sessionId, messageId: message.id }
+            });
+          });
+        }
+      }
+    } else if (clientInfo.clientType === clientTypes.USER) {
+      const markedMessages = readReceiptService.markAllAgentMessagesAsRead(sessionId);
+      
+      if (markedMessages.length > 0) {
+        this.send(ws, {
+          type: wsMessageTypes.BATCH_MESSAGE_READ_ACK,
+          payload: {
+            sessionId,
+            messageIds: markedMessages.map(m => m.id),
+            count: markedMessages.length
+          }
+        });
+
+        if (session.agentId) {
+          markedMessages.forEach(message => {
+            this.sendToAgent(session.agentId, {
+              type: wsMessageTypes.MESSAGE_READ,
+              payload: { sessionId, messageId: message.id }
+            });
+          });
+        }
+      }
+    }
+
+    console.log(`批量已读: ${sessionId} by ${clientInfo.clientType}`);
   }
 }
 

@@ -34,6 +34,9 @@ const WS_MESSAGE_TYPES = {
   AGENT_STATUS_UPDATE: 'agent_status_update',
   AGENT_STATUS_CHANGED: 'agent_status_changed',
   
+  BATCH_MESSAGE_READ: 'batch_message_read',
+  BATCH_MESSAGE_READ_ACK: 'batch_message_read_ack',
+  
   ERROR: 'error'
 };
 
@@ -374,6 +377,16 @@ export function useChatService() {
     });
   }
 
+  function markAllMessagesAsRead(sessionId) {
+    console.log('chatService markAllMessagesAsRead:', sessionId);
+    return send({
+      type: WS_MESSAGE_TYPES.BATCH_MESSAGE_READ,
+      payload: {
+        sessionId
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -399,7 +412,8 @@ export function useChatService() {
     createQuickReply,
     updateQuickReply,
     deleteQuickReply,
-    updateAgentStatus
+    updateAgentStatus,
+    markAllMessagesAsRead
   };
 }
 
