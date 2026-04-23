@@ -8,15 +8,20 @@
       <div 
         v-for="message in messages" 
         :key="message.id"
-        :class="['message-item', message.isFromMe() ? 'from-me' : 'from-server']"
+        :class="['message-item', isFromMe(message.sender) ? 'from-me' : 'from-server']"
       >
         <div class="message-sender">
-          {{ message.isFromMe() ? '我' : '客服' }}
-          <span class="message-time">{{ message.getTimeString() }}</span>
+          {{ isFromMe(message.sender) ? '我' : '客服' }}
+          <span class="message-time">{{ formatTime(message.timestamp) }}</span>
         </div>
         <div class="message-bubble">
           {{ message.content }}
         </div>
+      </div>
+      
+      <div v-if="isSending && !sending" class="message-item from-me">
+        <div class="message-sender">我</div>
+        <div class="message-bubble">发送中...</div>
       </div>
       
       <div v-if="sending" class="message-item from-server">
@@ -31,8 +36,8 @@
           type="text"
           v-model="inputMessage"
           placeholder="输入消息..."
-          @keypress.enter="handleSend"
-          maxlength="500"
+          @keypress.enter.prevent="handleSend"
+          :maxlength="500"
           :disabled="isSending"
         />
         <div class="char-count">{{ inputMessage.length }}/500</div>
@@ -49,20 +54,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue';
-import { useChatData } from '../data/chatData';
-import { useChatService } from '../services/chatService';
+import { ref, onMounted, nextTick, watch } from 'vue';
+import { useChatStore } from '../store/chatStore';
+
+const { 
+  messages, 
+  isSending, 
+  initializeStore, 
+  sendUserMessage,
+  formatTime,
+  isFromMe
+} = useChatStore();
 
 const messageListRef = ref(null);
 const inputMessage = ref('');
-const isSending = ref(false);
 const sending = ref(false);
-
-const { messages, initializeMessages, addMessage, updateMessage } = useChatData();
-const { sendMessage } = useChatService();
-
-const debounceTimer = ref(null);
-const DEBOUNCE_DELAY = 500;
 
 function scrollToBottom() {
   nextTick(() => {
@@ -72,63 +78,20 @@ function scrollToBottom() {
   });
 }
 
-function clearDebounce() {
-  if (debounceTimer.value) {
-    clearTimeout(debounceTimer.value);
-    debounceTimer.value = null;
-  }
-}
-
 async function handleSend() {
-  if (isSending.value) return;
-  
   const trimmedMessage = inputMessage.value.trim();
   if (!trimmedMessage) return;
-  
   if (trimmedMessage.length > 500) return;
-  
-  clearDebounce();
-  
-  isSending.value = true;
-  const userMessage = addMessage({
-    content: trimmedMessage,
-    sender: 'user',
-    type: 'text',
-    status: 'sending'
-  });
-  
+  if (isSending.value) return;
+
   inputMessage.value = '';
   scrollToBottom();
   
-  try {
-    updateMessage(userMessage.id, { status: 'sent' });
-    
-    sending.value = true;
-    const response = await sendMessage(trimmedMessage);
-    sending.value = false;
-    
-    addMessage({
-      content: response.message,
-      sender: 'server',
-      type: 'text',
-      status: 'sent'
-    });
-    
-    scrollToBottom();
-  } catch (error) {
-    sending.value = false;
-    updateMessage(userMessage.id, { status: 'error' });
-    console.error('发送消息失败:', error);
-  } finally {
-    isSending.value = false;
-  }
-}
-
-function debouncedSend() {
-  clearDebounce();
-  debounceTimer.value = setTimeout(() => {
-    handleSend();
-  }, DEBOUNCE_DELAY);
+  sending.value = true;
+  await sendUserMessage(trimmedMessage);
+  sending.value = false;
+  
+  scrollToBottom();
 }
 
 watch(messages, () => {
@@ -136,7 +99,7 @@ watch(messages, () => {
 }, { deep: true });
 
 onMounted(() => {
-  initializeMessages();
+  initializeStore();
   scrollToBottom();
 });
 </script>
