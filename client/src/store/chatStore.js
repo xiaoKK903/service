@@ -1,21 +1,26 @@
-import { ref, computed } from 'vue';
-import { createMessage, isFromMe, isFromServer, formatTime } from '../types/messageTypes';
-import { mockMessages } from '../mocks/chatMocks';
+import { ref, computed, onUnmounted } from 'vue';
+import { messageSenders, messageStatuses, messageTypes } from '../types/messageTypes';
 import { useChatService } from '../services/chatService';
 
 const messages = ref([]);
 const isLoading = ref(false);
 const isSending = ref(false);
+const currentSession = ref(null);
+const isInitialized = ref(false);
+
+const currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+const currentUserName = `用户${currentUserId.substr(-4)}`;
 
 export function useChatStore() {
-  const { sendMessage } = useChatService();
+  const chatService = useChatService();
+  const { WS_MESSAGE_TYPES } = chatService;
 
   const sentMessages = computed(() => {
-    return messages.value.filter(m => m.sender === 'user');
+    return messages.value.filter(m => m.sender === messageSenders.USER);
   });
 
   const receivedMessages = computed(() => {
-    return messages.value.filter(m => m.sender === 'server');
+    return messages.value.filter(m => m.sender === messageSenders.AGENT || m.sender === messageSenders.SYSTEM);
   });
 
   const lastMessage = computed(() => {
@@ -26,12 +31,106 @@ export function useChatStore() {
     return messages.value.length > 0;
   });
 
-  function initializeStore() {
-    messages.value = mockMessages.map(m => createMessage(m));
+  const canSendMessage = computed(() => {
+    return !isSending.value && 
+           chatService.isConnected.value &&
+           chatService.isAuthenticated.value;
+  });
+
+  function setupWebSocketListeners() {
+    chatService.on(WS_MESSAGE_TYPES.SESSION_CREATED, (payload) => {
+      currentSession.value = payload;
+      console.log('会话创建成功:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SESSION_UPDATE, (payload) => {
+      if (payload.update) {
+        currentSession.value = payload.update;
+      } else {
+        currentSession.value = payload;
+      }
+      console.log('会话更新:', currentSession.value);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SESSION_ACCEPTED, (payload) => {
+      currentSession.value = payload;
+      console.log('会话已被接待:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SESSION_CLOSED, (payload) => {
+      currentSession.value = payload;
+      console.log('会话已关闭:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_HISTORY, (payload) => {
+      if (payload.sessionId && payload.messages) {
+        messages.value = payload.messages;
+        console.log('收到消息历史:', payload.messages.length);
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_SENT, (payload) => {
+      const index = messages.value.findIndex(m => m.id === `temp_${payload.id.split('_')[1]}`);
+      if (index > -1) {
+        messages.value[index] = {
+          ...messages.value[index],
+          id: payload.id,
+          status: messageStatuses.SENT
+        };
+      }
+      console.log('消息已发送:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECEIVE, (payload) => {
+      const existingMessage = messages.value.find(m => m.id === payload.id);
+      if (!existingMessage) {
+        messages.value.push(payload);
+      }
+      console.log('收到消息:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_DELIVERED, (payload) => {
+      const index = messages.value.findIndex(m => m.id === payload.messageId);
+      if (index > -1) {
+        messages.value[index].status = messageStatuses.DELIVERED;
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_READ, (payload) => {
+      const index = messages.value.findIndex(m => m.id === payload.messageId);
+      if (index > -1) {
+        messages.value[index].status = messageStatuses.READ;
+      }
+    });
+  }
+
+  async function initializeStore() {
+    if (isInitialized.value) return;
+
+    setupWebSocketListeners();
+
+    try {
+      await chatService.connect(currentUserId, currentUserName);
+      
+      const result = chatService.createSession();
+      
+      isInitialized.value = true;
+      console.log('客户端初始化成功，用户ID:', currentUserId);
+    } catch (error) {
+      console.error('客户端初始化失败:', error);
+    }
   }
 
   function addMessage(messageData) {
-    const message = createMessage(messageData);
+    const message = {
+      id: messageData.id || Date.now().toString(),
+      content: messageData.content,
+      sender: messageData.sender,
+      type: messageData.type || messageTypes.TEXT,
+      timestamp: messageData.timestamp || Date.now(),
+      status: messageData.status || messageStatuses.PENDING
+    };
+    
     messages.value.push(message);
     return message;
   }
@@ -51,54 +150,60 @@ export function useChatStore() {
     if (isSending.value) return null;
     if (!content.trim()) return null;
     if (content.length > 500) return null;
+    if (!currentSession.value) {
+      console.error('没有活动会话');
+      return null;
+    }
 
     isSending.value = true;
     
+    const tempMessageId = `temp_${Date.now()}`;
+    
     const userMessage = addMessage({
+      id: tempMessageId,
       content: content.trim(),
-      sender: 'user',
-      type: 'text',
-      status: 'sending'
+      sender: messageSenders.USER,
+      type: messageTypes.TEXT,
+      status: messageStatuses.SENDING
     });
 
-    try {
-      updateMessage(userMessage.id, { status: 'sent' });
-      
-      const response = await sendMessage(content.trim());
-      
-      addMessage({
-        content: response.message,
-        sender: 'server',
-        type: 'text',
-        status: 'sent'
-      });
+    const result = chatService.sendMessage(currentSession.value.id, content.trim());
 
-      return response;
-    } catch (error) {
-      updateMessage(userMessage.id, { status: 'error' });
-      console.error('发送消息失败:', error);
-      return null;
-    } finally {
-      isSending.value = false;
+    if (!result) {
+      updateMessage(tempMessageId, { status: messageStatuses.ERROR });
     }
+
+    isSending.value = false;
+    return result;
   }
+
+  function disconnect() {
+    chatService.disconnect();
+  }
+
+  onUnmounted(() => {
+    disconnect();
+  });
 
   return {
     messages,
     isLoading,
     isSending,
+    currentSession,
+    currentUserId,
+    currentUserName,
     sentMessages,
     receivedMessages,
     lastMessage,
     hasMessages,
+    canSendMessage,
+    isInitialized,
     initializeStore,
     addMessage,
     updateMessage,
     clearMessages,
     sendUserMessage,
-    formatTime,
-    isFromMe,
-    isFromServer
+    disconnect
   };
 }
 

@@ -7,6 +7,7 @@ import { sessionStatuses, messageTypes, messageSenders, messageStatuses } from '
 const state = reactive({
   isInitialized: false,
   currentAgentId: 'agent-1',
+  currentAgentName: '张客服',
   selectedSessionId: null
 });
 
@@ -45,21 +46,7 @@ export function useChatStore() {
   async function initialize() {
     if (state.isInitialized) return;
     
-    dataLayer.initializeData(state.currentAgentId);
-    
-    chatService.setMessageHandler((message) => {
-      businessLayer.handleIncomingMessage(message);
-    });
-
-    chatService.setSessionHandler((sessionData) => {
-      businessLayer.handleSessionUpdate(sessionData);
-    });
-
-    try {
-      await chatService.connectWebSocket(state.currentAgentId);
-    } catch (error) {
-      console.error('WebSocket连接失败，使用模拟数据:', error);
-    }
+    await businessLayer.initialize(state.currentAgentId, state.currentAgentName);
 
     state.isInitialized = true;
   }
@@ -70,15 +57,11 @@ export function useChatStore() {
   }
 
   async function acceptSession(sessionId) {
-    const result = await businessLayer.acceptSession(sessionId, state.currentAgentId);
-    dataLayer.sortSessionsByTime();
-    return result;
+    return businessLayer.acceptSession(sessionId);
   }
 
   async function closeSession(sessionId) {
-    const result = await businessLayer.closeSession(sessionId);
-    dataLayer.sortSessionsByTime();
-    return result;
+    return businessLayer.closeSession(sessionId);
   }
 
   async function sendMessage() {
@@ -117,14 +100,8 @@ export function useChatStore() {
     dataLayer.sortSessionsByTime();
   }
 
-  async function reconnectWebSocket() {
-    if (state.isInitialized) {
-      await chatService.connectWebSocket(state.currentAgentId);
-    }
-  }
-
   function disconnectWebSocket() {
-    chatService.disconnectWebSocket();
+    chatService.disconnect();
   }
 
   return {
@@ -155,7 +132,6 @@ export function useChatStore() {
     getSessionById,
     getMessagesBySessionId,
     refreshSessions,
-    reconnectWebSocket,
     disconnectWebSocket
   };
 }
