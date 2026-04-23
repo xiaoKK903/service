@@ -1,19 +1,30 @@
 export const messageTypes = {
   TEXT: 'text',
   IMAGE: 'image',
-  SYSTEM: 'system'
+  SYSTEM: 'system',
+  FILE: 'file'
 };
 
 export const messageSenders = {
   USER: 'user',
-  SERVER: 'server'
+  AGENT: 'agent',
+  SYSTEM: 'system'
 };
 
 export const messageStatuses = {
   PENDING: 'pending',
   SENDING: 'sending',
   SENT: 'sent',
+  DELIVERED: 'delivered',
+  READ: 'read',
   ERROR: 'error'
+};
+
+export const sessionStatuses = {
+  WAITING: 'waiting',
+  ACTIVE: 'active',
+  TRANSFERRED: 'transferred',
+  CLOSED: 'closed'
 };
 
 export function formatTime(timestamp) {
