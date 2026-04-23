@@ -175,7 +175,7 @@ export function useChatBusiness() {
         content: content.trim(),
         sender: messageSenders.AGENT,
         type: messageTypes.TEXT,
-        status: messageStatuses.SENDING,
+        status: messageStatuses.SENT,
         agentId: dataLayer.currentAgent.value,
         userId: session.userId,
         sessionId: selectedSessionId.value,

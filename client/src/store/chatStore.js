@@ -70,13 +70,32 @@ export function useChatStore() {
     });
 
     chatService.on(WS_MESSAGE_TYPES.MESSAGE_SENT, (payload) => {
-      const index = messages.value.findIndex(m => m.id === `temp_${payload.id.split('_')[1]}`);
+      const tempId = payload.id;
+      let index = messages.value.findIndex(m => m.id === tempId || m.id.startsWith('temp_'));
+      
       if (index > -1) {
-        messages.value[index] = {
-          ...messages.value[index],
-          id: payload.id,
-          status: messageStatuses.SENT
-        };
+        if (messages.value[index].id.startsWith('temp_')) {
+          messages.value[index] = {
+            ...messages.value[index],
+            id: payload.id,
+            status: messageStatuses.SENT
+          };
+        } else {
+          messages.value[index].status = messageStatuses.SENT;
+        }
+      } else {
+        const existingMessage = messages.value.find(m => m.id === payload.id);
+        if (!existingMessage) {
+          messages.value.push({
+            id: payload.id,
+            content: payload.content,
+            sender: payload.sender,
+            type: payload.type || messageTypes.TEXT,
+            timestamp: payload.timestamp || Date.now(),
+            status: messageStatuses.SENT,
+            sessionId: payload.sessionId
+          });
+        }
       }
       console.log('消息已发送:', payload);
     });
@@ -164,7 +183,7 @@ export function useChatStore() {
       content: content.trim(),
       sender: messageSenders.USER,
       type: messageTypes.TEXT,
-      status: messageStatuses.SENDING
+      status: messageStatuses.SENT
     });
 
     const result = chatService.sendMessage(currentSession.value.id, content.trim());
