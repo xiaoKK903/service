@@ -48,7 +48,7 @@
           placeholder="输入消息..."
           @keypress.enter.prevent="handleSend"
           :maxlength="500"
-          :disabled="!canSend"
+          :disabled="!canInput"
         />
         <div class="char-count">{{ inputMessage.length }}/500</div>
       </div>
@@ -90,6 +90,10 @@ const canSend = computed(() => {
   return chatStore.canSendMessage.value && 
          inputMessage.value.trim() && 
          !isSending.value;
+});
+
+const canInput = computed(() => {
+  return chatStore.canSendMessage.value && !isSending.value;
 });
 
 function isFromMe(sender) {
