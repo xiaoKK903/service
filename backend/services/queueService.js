@@ -8,10 +8,15 @@ class QueueService {
 
   getAvailableAgentForNewSession() {
     const idleAgents = this.agentService.getIdleAgents();
+    console.log('[QueueService] 空闲客服数量:', idleAgents.length);
     
     const fullyIdleAgents = idleAgents.filter(agent => {
+      const hasActiveSessions = agent.activeSessions && agent.activeSessions.length > 0;
+      console.log(`[QueueService] 检查客服 ${agent.id}: activeSessions=${agent.activeSessions?.length || 0}, hasActiveSessions=${hasActiveSessions}`);
       return agent.activeSessions && agent.activeSessions.length === 0;
     });
+    
+    console.log('[QueueService] 完全空闲客服数量:', fullyIdleAgents.length);
     
     if (fullyIdleAgents.length === 0) {
       return null;
@@ -21,6 +26,7 @@ class QueueService {
       return a.lastSeen - b.lastSeen;
     });
     
+    console.log('[QueueService] 选择客服:', fullyIdleAgents[0].id);
     return fullyIdleAgents[0];
   }
 
