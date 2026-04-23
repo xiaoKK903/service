@@ -204,9 +204,13 @@ class WebSocketService {
     this.broadcastSessionsToAgents();
 
     if (session.status === sessionStatuses.WAITING) {
+      console.log(`[WebSocketService] 会话 ${session.id} 处于等待状态，尝试分配客服...`);
       const bestAgent = queueService.getAvailableAgentForNewSession();
       if (bestAgent) {
+        console.log(`[WebSocketService] 找到可用客服 ${bestAgent.id}，分配会话 ${session.id}`);
         this.assignSessionToAgent(session.id, bestAgent.id);
+      } else {
+        console.log(`[WebSocketService] 没有可用客服，会话 ${session.id} 进入排队`);
       }
     }
 
@@ -304,6 +308,12 @@ class WebSocketService {
 
     if (session.agentId) {
       agentService.removeSessionFromAgent(session.agentId, sessionId);
+      
+      const agent = agentService.getAgent(session.agentId);
+      if (agent && agent.activeSessions && agent.activeSessions.length === 0 && agent.status === agentStatuses.IDLE) {
+        console.log(`[WebSocketService] 客服 ${session.agentId} 现在完全空闲，尝试分配等待中的会话`);
+        this.tryAssignWaitingSessions();
+      }
 
       this.sendToAgent(session.agentId, {
         type: wsMessageTypes.SESSION_UPDATE,

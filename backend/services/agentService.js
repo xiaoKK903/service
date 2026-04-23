@@ -92,11 +92,13 @@ class AgentService {
   addSessionToAgent(agentId, sessionId) {
     const agent = this.getAgent(agentId);
     if (!agent) {
+      console.log(`[AgentService] 客服 ${agentId} 不存在，无法添加会话`);
       return false;
     }
 
     if (!agent.activeSessions.includes(sessionId)) {
       agent.activeSessions.push(sessionId);
+      console.log(`[AgentService] 客服 ${agentId} 添加会话 ${sessionId}，当前活跃会话数: ${agent.activeSessions.length}`);
     }
     return true;
   }
@@ -104,12 +106,14 @@ class AgentService {
   removeSessionFromAgent(agentId, sessionId) {
     const agent = this.getAgent(agentId);
     if (!agent) {
+      console.log(`[AgentService] 客服 ${agentId} 不存在，无法移除会话`);
       return false;
     }
 
     const index = agent.activeSessions.indexOf(sessionId);
     if (index > -1) {
       agent.activeSessions.splice(index, 1);
+      console.log(`[AgentService] 客服 ${agentId} 移除会话 ${sessionId}，当前活跃会话数: ${agent.activeSessions.length}`);
     }
     return true;
   }

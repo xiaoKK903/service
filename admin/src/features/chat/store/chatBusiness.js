@@ -195,6 +195,7 @@ export function useChatBusiness() {
   async function selectSession(sessionId) {
     const previousSessionId = selectedSessionId.value;
     selectedSessionId.value = sessionId;
+    console.log(`[chatBusiness] 选择会话: ${sessionId}`);
     
     if (sessionId) {
       dataLayer.resetUnreadCount(sessionId);
@@ -212,7 +213,9 @@ export function useChatBusiness() {
         }
       }
       
-      chatService.markAllMessagesAsRead(sessionId);
+      console.log(`[chatBusiness] 调用 markAllMessagesAsRead: ${sessionId}`);
+      const result = chatService.markAllMessagesAsRead(sessionId);
+      console.log(`[chatBusiness] markAllMessagesAsRead 结果: ${result}`);
     }
   }
 
