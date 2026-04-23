@@ -7,6 +7,8 @@ const selectedSessionId = ref(null);
 const isSending = ref(false);
 const inputMessage = ref('');
 const isInitialized = ref(false);
+const quickReplies = ref([]);
+const quickRepliesInitialized = ref(false);
 
 export function useChatBusiness() {
   const dataLayer = useChatData();
@@ -22,6 +24,10 @@ export function useChatBusiness() {
   const currentMessages = computed(() => {
     if (!selectedSessionId.value) return [];
     return dataLayer.getMessagesBySessionId(selectedSessionId.value);
+  });
+
+  const sortedQuickReplies = computed(() => {
+    return [...quickReplies.value].sort((a, b) => a.sortOrder - b.sortOrder);
   });
 
   const canSendMessage = computed(() => {
@@ -51,7 +57,58 @@ export function useChatBusiness() {
     }
   }
 
+  function setupQuickReplyListeners() {
+    chatService.on(WS_MESSAGE_TYPES.QUICK_REPLY_LIST_RESPONSE, (payload) => {
+      console.log('收到快捷短语列表:', payload);
+      if (payload && payload.quickReplies) {
+        quickReplies.value = payload.quickReplies;
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.QUICK_REPLY_CREATED, (payload) => {
+      console.log('快捷短语已创建:', payload);
+      if (payload) {
+        const exists = quickReplies.value.find(qr => qr.id === payload.id);
+        if (!exists) {
+          quickReplies.value.push(payload);
+          quickReplies.value.sort((a, b) => a.sortOrder - b.sortOrder);
+        }
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.QUICK_REPLY_UPDATED, (payload) => {
+      console.log('快捷短语已更新:', payload);
+      if (payload) {
+        const index = quickReplies.value.findIndex(qr => qr.id === payload.id);
+        if (index > -1) {
+          quickReplies.value[index] = { ...quickReplies.value[index], ...payload };
+          quickReplies.value.sort((a, b) => a.sortOrder - b.sortOrder);
+        }
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.QUICK_REPLY_DELETED, (payload) => {
+      console.log('快捷短语已删除:', payload);
+      if (payload && payload.id) {
+        const index = quickReplies.value.findIndex(qr => qr.id === payload.id);
+        if (index > -1) {
+          quickReplies.value.splice(index, 1);
+        }
+      }
+    });
+  }
+
   function setupWebSocketListeners() {
+    setupQuickReplyListeners();
+
+    chatService.on(WS_MESSAGE_TYPES.AUTH_SUCCESS, () => {
+      console.log('认证成功，获取快捷短语列表...');
+      if (!quickRepliesInitialized.value) {
+        chatService.getQuickReplyList();
+        quickRepliesInitialized.value = true;
+      }
+    });
+
     chatService.on(WS_MESSAGE_TYPES.SESSION_LIST, (payload) => {
       if (payload.sessions) {
         dataLayer.setSessions(payload.sessions);
@@ -262,6 +319,21 @@ export function useChatBusiness() {
     inputMessage.value = '';
   }
 
+  function createQuickReply({ keyword, content, sortOrder }) {
+    console.log('chatBusiness createQuickReply:', { keyword, content, sortOrder });
+    return chatService.createQuickReply({ keyword, content, sortOrder });
+  }
+
+  function updateQuickReply({ id, keyword, content, sortOrder }) {
+    console.log('chatBusiness updateQuickReply:', { id, keyword, content, sortOrder });
+    return chatService.updateQuickReply({ id, keyword, content, sortOrder });
+  }
+
+  function deleteQuickReply(id) {
+    console.log('chatBusiness deleteQuickReply:', id);
+    return chatService.deleteQuickReply(id);
+  }
+
   return {
     selectedSessionId,
     selectedSession,
@@ -270,6 +342,9 @@ export function useChatBusiness() {
     inputMessage,
     canSendMessage,
     isInitialized,
+    quickReplies,
+    sortedQuickReplies,
+    quickRepliesInitialized,
     initialize,
     selectSession,
     acceptSession,
@@ -278,7 +353,10 @@ export function useChatBusiness() {
     handleIncomingMessage,
     handleSessionUpdate,
     setInputMessage,
-    clearInputMessage
+    clearInputMessage,
+    createQuickReply,
+    updateQuickReply,
+    deleteQuickReply
   };
 }
 

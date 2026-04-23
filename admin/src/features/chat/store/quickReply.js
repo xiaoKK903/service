@@ -67,6 +67,7 @@ function useQuickReplyStore() {
 
   function initialize() {
     setupEventHandlers();
+    console.log('quickReplyStore initialize: isAuthenticated:', chatService.isAuthenticated.value);
     if (chatService.isAuthenticated.value && !isInitialized.value) {
       chatService.getQuickReplyList();
       isInitialized.value = true;
@@ -79,7 +80,15 @@ function useQuickReplyStore() {
 
   function createQuickReply({ keyword, content, sortOrder }) {
     console.log('quickReplyStore createQuickReply:', { keyword, content, sortOrder });
-    return chatService.createQuickReply({ keyword, content, sortOrder });
+    console.log('quickReplyStore chatService:', chatService);
+    console.log('quickReplyStore chatService.send:', typeof chatService.send);
+    console.log('quickReplyStore chatService.createQuickReply:', typeof chatService.createQuickReply);
+    console.log('quickReplyStore isAuthenticated:', chatService.isAuthenticated.value);
+    console.log('quickReplyStore isConnected:', chatService.isConnected.value);
+    
+    const result = chatService.createQuickReply({ keyword, content, sortOrder });
+    console.log('quickReplyStore createQuickReply result:', result);
+    return result;
   }
 
   function updateQuickReply({ id, keyword, content, sortOrder }) {

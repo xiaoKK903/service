@@ -54,10 +54,8 @@ import SessionList from '../components/SessionList.vue';
 import ChatWindow from '../components/ChatWindow.vue';
 import QuickReplyManager from '../components/QuickReplyManager.vue';
 import { useChatStore } from '../store';
-import { useQuickReplyStore } from '../store/quickReply';
 
 const store = useChatStore();
-const quickReplyStore = useQuickReplyStore();
 
 const showQuickReplyManager = ref(false);
 
@@ -69,7 +67,7 @@ const totalUnreadCount = computed(() => store.totalUnreadCount.value);
 const isSending = computed(() => store.isSending.value);
 const canSendMessage = computed(() => store.canSendMessage.value);
 const isWebSocketConnected = computed(() => store.isWebSocketConnected.value);
-const quickReplies = computed(() => quickReplyStore.sortedQuickReplies.value);
+const quickReplies = computed(() => store.sortedQuickReplies.value);
 
 const waitingCount = computed(() => store.waitingSessions.value.length);
 const activeCount = computed(() => store.activeSessions.value.length);
@@ -97,22 +95,21 @@ async function handleSendMessage(content) {
 
 function handleCreateQuickReply(data) {
   console.log('AdminView handleCreateQuickReply:', data);
-  quickReplyStore.createQuickReply(data);
+  store.createQuickReply(data);
 }
 
 function handleUpdateQuickReply(data) {
   console.log('AdminView handleUpdateQuickReply:', data);
-  quickReplyStore.updateQuickReply(data);
+  store.updateQuickReply(data);
 }
 
 function handleDeleteQuickReply(id) {
   console.log('AdminView handleDeleteQuickReply:', id);
-  quickReplyStore.deleteQuickReply(id);
+  store.deleteQuickReply(id);
 }
 
 onMounted(() => {
   store.initialize();
-  quickReplyStore.initialize();
 });
 </script>
 
