@@ -9,6 +9,12 @@
         <span v-if="currentSession" class="session-status" :class="currentSession.status">
           {{ getStatusText(currentSession.status) }}
         </span>
+        <span v-if="currentAgentStatus && currentSession && currentSession.status === 'active'" 
+              class="agent-status" 
+              :class="currentAgentStatus">
+          <span class="status-dot" :class="currentAgentStatus"></span>
+          {{ getAgentStatusText(currentAgentStatus) }}
+        </span>
       </div>
     </header>
 
@@ -70,14 +76,14 @@ import { messageSenders, messageStatuses, sessionStatuses, formatTime } from '..
 
 const chatStore = useChatStore();
 
-const { 
-  messages, 
-  isSending, 
-  currentSession,
-  canSendMessage,
-  initializeStore, 
-  sendUserMessage
-} = chatStore;
+const AGENT_STATUS_IDLE = 'idle';
+const AGENT_STATUS_BUSY = 'busy';
+const AGENT_STATUS_OFFLINE = 'offline';
+
+const messages = computed(() => chatStore.messages.value);
+const isSending = computed(() => chatStore.isSending.value);
+const currentSession = computed(() => chatStore.currentSession.value);
+const currentAgentStatus = computed(() => chatStore.currentAgentStatus.value);
 
 const messageListRef = ref(null);
 const inputMessage = ref('');
@@ -143,6 +149,19 @@ function getMessageStatusText(status) {
   }
 }
 
+function getAgentStatusText(status) {
+  switch (status) {
+    case AGENT_STATUS_IDLE:
+      return '空闲';
+    case AGENT_STATUS_BUSY:
+      return '忙碌';
+    case AGENT_STATUS_OFFLINE:
+      return '离线';
+    default:
+      return '未知';
+  }
+}
+
 function scrollToBottom() {
   nextTick(() => {
     if (messageListRef.value) {
@@ -160,7 +179,7 @@ async function handleSend() {
   inputMessage.value = '';
   scrollToBottom();
   
-  await sendUserMessage(trimmedMessage);
+  await chatStore.sendUserMessage(trimmedMessage);
   
   scrollToBottom();
 }
@@ -170,7 +189,7 @@ watch(messages, () => {
 }, { deep: true });
 
 onMounted(() => {
-  initializeStore();
+  chatStore.initializeStore();
   scrollToBottom();
 });
 </script>
@@ -231,6 +250,47 @@ onMounted(() => {
 
 .session-status.closed {
   background-color: rgba(153, 153, 153, 0.3);
+}
+
+.agent-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-status.idle {
+  background-color: rgba(82, 196, 26, 0.3);
+}
+
+.agent-status.busy {
+  background-color: rgba(250, 140, 22, 0.3);
+}
+
+.agent-status.offline {
+  background-color: rgba(255, 77, 79, 0.3);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.idle {
+  background-color: #52c41a;
+  box-shadow: 0 0 4px #52c41a;
+}
+
+.status-dot.busy {
+  background-color: #faad14;
+  box-shadow: 0 0 4px #faad14;
+}
+
+.status-dot.offline {
+  background-color: #ff4d4f;
+  box-shadow: 0 0 4px #ff4d4f;
 }
 
 .message-list {

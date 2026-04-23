@@ -27,6 +27,12 @@ export const sessionStatuses = {
   CLOSED: 'closed'
 };
 
+export const agentStatuses = {
+  IDLE: 'idle',
+  BUSY: 'busy',
+  OFFLINE: 'offline'
+};
+
 export function formatTime(timestamp) {
   const date = new Date(timestamp);
   const hours = String(date.getHours()).padStart(2, '0');
@@ -88,6 +94,7 @@ export default {
   messageSenders,
   messageStatuses,
   sessionStatuses,
+  agentStatuses,
   formatTime,
   formatDate,
   isFromUser,

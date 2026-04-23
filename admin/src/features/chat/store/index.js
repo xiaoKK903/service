@@ -2,7 +2,7 @@ import { reactive, computed } from 'vue';
 import { useChatData } from './chatData';
 import { useChatBusiness } from './chatBusiness';
 import { useChatService } from '../services/chatService';
-import { sessionStatuses, messageTypes, messageSenders, messageStatuses } from '../types/messageTypes';
+import { sessionStatuses, messageTypes, messageSenders, messageStatuses, agentStatuses } from '../types/messageTypes';
 
 const state = reactive({
   isInitialized: false,
@@ -37,12 +37,14 @@ export function useChatStore() {
   const isWebSocketConnected = computed(() => chatService.isConnected.value);
   const quickReplies = computed(() => businessLayer.quickReplies.value);
   const sortedQuickReplies = computed(() => businessLayer.sortedQuickReplies.value);
+  const currentAgentStatus = computed(() => businessLayer.currentAgentStatus.value);
 
   const constants = {
     sessionStatuses,
     messageTypes,
     messageSenders,
-    messageStatuses
+    messageStatuses,
+    agentStatuses
   };
 
   async function initialize() {
@@ -118,6 +120,10 @@ export function useChatStore() {
     return businessLayer.deleteQuickReply(id);
   }
 
+  function updateAgentStatus(status) {
+    return businessLayer.updateAgentStatus(status);
+  }
+
   return {
     state,
     getters,
@@ -136,6 +142,7 @@ export function useChatStore() {
     isWebSocketConnected,
     quickReplies,
     sortedQuickReplies,
+    currentAgentStatus,
     constants,
     initialize,
     selectSession,
@@ -151,7 +158,8 @@ export function useChatStore() {
     disconnectWebSocket,
     createQuickReply,
     updateQuickReply,
-    deleteQuickReply
+    deleteQuickReply,
+    updateAgentStatus
   };
 }
 

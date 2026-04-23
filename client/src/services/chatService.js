@@ -21,6 +21,9 @@ const WS_MESSAGE_TYPES = {
   MESSAGE_RECEIVE: 'message_receive',
   MESSAGE_HISTORY: 'message_history',
   
+  AGENT_STATUS_UPDATE: 'agent_status_update',
+  AGENT_STATUS_CHANGED: 'agent_status_changed',
+  
   ERROR: 'error'
 };
 

@@ -1,8 +1,9 @@
 const WebSocket = require('ws');
-const { wsMessageTypes, clientTypes, messageSenders, messageStatuses, sessionStatuses } = require('../utils/constants');
+const { wsMessageTypes, clientTypes, messageSenders, messageStatuses, sessionStatuses, agentStatuses } = require('../utils/constants');
 const sessionService = require('./sessionService');
 const messageService = require('./messageService');
 const quickReplyService = require('./quickReplyService');
+const agentService = require('./agentService');
 
 class WebSocketService {
   constructor() {
@@ -90,6 +91,10 @@ class WebSocketService {
           this.handleQuickReplyDelete(ws, payload);
           break;
         
+        case wsMessageTypes.AGENT_STATUS_UPDATE:
+          this.handleAgentStatusUpdate(ws, payload);
+          break;
+        
         default:
           console.log('未知消息类型:', type);
       }
@@ -123,8 +128,22 @@ class WebSocketService {
       }
       this.agentConnections.get(clientId).add(ws);
 
+      agentService.getOrCreateAgent(clientId, clientName);
+      agentService.setAgentConnected(clientId, true);
+
       this.sendSessionList(ws);
       this.broadcastSessionsToAgents();
+
+      const agent = agentService.getAgent(clientId);
+      if (agent) {
+        this.send(ws, {
+          type: wsMessageTypes.AGENT_STATUS_CHANGED,
+          payload: {
+            agentId: clientId,
+            status: agent.status
+          }
+        });
+      }
     }
 
     this.send(ws, {
@@ -178,6 +197,13 @@ class WebSocketService {
 
     this.broadcastSessionsToAgents();
 
+    if (session.status === sessionStatuses.WAITING) {
+      const bestAgent = agentService.getBestIdleAgent();
+      if (bestAgent) {
+        this.assignSessionToAgent(session.id, bestAgent.id);
+      }
+    }
+
     console.log(`会话创建/获取: ${session.id}`);
   }
 
@@ -195,6 +221,8 @@ class WebSocketService {
       this.sendError(ws, '会话不存在或无法接待');
       return;
     }
+
+    agentService.addSessionToAgent(clientInfo.clientId, sessionId);
 
     const systemMessage = messageService.createMessage({
       content: `客服已接入，请问有什么可以帮助您的？`,
@@ -269,6 +297,8 @@ class WebSocketService {
     });
 
     if (session.agentId) {
+      agentService.removeSessionFromAgent(session.agentId, sessionId);
+
       this.sendToAgent(session.agentId, {
         type: wsMessageTypes.SESSION_UPDATE,
         payload: session.toJSON()
@@ -320,16 +350,44 @@ class WebSocketService {
     });
 
     if (clientInfo.clientType === clientTypes.USER && session.agentId) {
+      const agentConnections = this.agentConnections.get(session.agentId);
+      const agentIsConnected = agentConnections && agentConnections.size > 0;
+
       this.sendToAgent(session.agentId, {
         type: wsMessageTypes.MESSAGE_RECEIVE,
         payload: message.toJSON()
       });
       sessionService.incrementUnreadCount(sessionId);
+
+      if (agentIsConnected) {
+        messageService.markMessageAsDelivered(message.id, sessionId);
+        this.send(ws, {
+          type: wsMessageTypes.MESSAGE_DELIVERED,
+          payload: {
+            sessionId,
+            messageId: message.id
+          }
+        });
+      }
     } else if (clientInfo.clientType === clientTypes.AGENT && session.userId) {
+      const userConnections = this.userConnections.get(session.userId);
+      const userIsConnected = userConnections && userConnections.size > 0;
+
       this.sendToUser(session.userId, {
         type: wsMessageTypes.MESSAGE_RECEIVE,
         payload: message.toJSON()
       });
+
+      if (userIsConnected) {
+        messageService.markMessageAsDelivered(message.id, sessionId);
+        this.send(ws, {
+          type: wsMessageTypes.MESSAGE_DELIVERED,
+          payload: {
+            sessionId,
+            messageId: message.id
+          }
+        });
+      }
     }
 
     this.broadcastSessionsToAgents();
@@ -394,6 +452,9 @@ class WebSocketService {
           connections.delete(ws);
           if (connections.size === 0) {
             this.agentConnections.delete(clientInfo.clientId);
+            agentService.setAgentConnected(clientInfo.clientId, false);
+
+            this.broadcastAgentStatusChange(clientInfo.clientId, agentStatuses.OFFLINE);
           }
         }
       }
@@ -567,6 +628,131 @@ class WebSocketService {
     this.agentConnections.forEach(connections => {
       connections.forEach(ws => this.send(ws, message));
     });
+  }
+
+  handleAgentStatusUpdate(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '只有客服可以更新状态');
+      return;
+    }
+
+    const { status } = payload;
+    if (!status) {
+      this.sendError(ws, '缺少状态参数');
+      return;
+    }
+
+    const validStatuses = Object.values(agentStatuses);
+    if (!validStatuses.includes(status)) {
+      this.sendError(ws, '无效的状态值');
+      return;
+    }
+
+    const agent = agentService.updateAgentStatus(clientInfo.clientId, status);
+    if (!agent) {
+      this.sendError(ws, '客服不存在');
+      return;
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.AGENT_STATUS_CHANGED,
+      payload: {
+        agentId: clientInfo.clientId,
+        status: agent.status
+      }
+    });
+
+    this.broadcastAgentStatusChange(clientInfo.clientId, agent.status);
+
+    if (status === agentStatuses.IDLE) {
+      this.tryAssignWaitingSessions();
+    }
+
+    console.log(`客服状态更新: ${clientInfo.clientId} -> ${status}`);
+  }
+
+  broadcastAgentStatusChange(agentId, status) {
+    const sessions = sessionService.getAgentSessions(agentId);
+    const message = {
+      type: wsMessageTypes.AGENT_STATUS_CHANGED,
+      payload: {
+        agentId,
+        status
+      }
+    };
+
+    sessions.forEach(session => {
+      this.sendToUser(session.userId, message);
+    });
+
+    this.agentConnections.forEach((connections, aid) => {
+      if (aid !== agentId) {
+        connections.forEach(ws => this.send(ws, message));
+      }
+    });
+  }
+
+  tryAssignWaitingSessions() {
+    const availableAgents = agentService.getIdleAgents();
+    if (availableAgents.length === 0) {
+      return;
+    }
+
+    const waitingSessions = sessionService.getWaitingSessions();
+    for (const session of waitingSessions) {
+      const bestAgent = agentService.getBestIdleAgent();
+      if (bestAgent) {
+        this.assignSessionToAgent(session.id, bestAgent.id);
+      } else {
+        break;
+      }
+    }
+  }
+
+  assignSessionToAgent(sessionId, agentId) {
+    const session = sessionService.acceptSession(sessionId, agentId);
+    if (!session) {
+      return null;
+    }
+
+    agentService.addSessionToAgent(agentId, sessionId);
+
+    const systemMessage = messageService.createMessage({
+      content: `客服已接入，请问有什么可以帮助您的？`,
+      sender: messageSenders.SYSTEM,
+      sessionId: session.id
+    });
+
+    sessionService.updateLastMessage(session.id, systemMessage.content, systemMessage.timestamp);
+
+    this.sendToAgent(agentId, {
+      type: wsMessageTypes.SESSION_ACCEPTED,
+      payload: session.toJSON()
+    });
+
+    this.sendToAgent(agentId, {
+      type: wsMessageTypes.MESSAGE_HISTORY,
+      payload: {
+        sessionId: session.id,
+        messages: messageService.getMessages(session.id).map(m => m.toJSON())
+      }
+    });
+
+    this.sendToUser(session.userId, {
+      type: wsMessageTypes.SESSION_UPDATE,
+      payload: session.toJSON()
+    });
+
+    this.sendToUser(session.userId, {
+      type: wsMessageTypes.MESSAGE_RECEIVE,
+      payload: systemMessage.toJSON()
+    });
+
+    this.broadcastSessionsToAgents();
+
+    console.log(`会话自动分配: ${sessionId} to ${agentId}`);
+    return session;
   }
 }
 

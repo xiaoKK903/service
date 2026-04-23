@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue';
-import { sessionStatuses, messageStatuses, messageSenders, messageTypes } from '../types/messageTypes';
+import { sessionStatuses, messageStatuses, messageSenders, messageTypes, agentStatuses } from '../types/messageTypes';
 import { useChatData } from './chatData';
 import { useChatService } from '../services/chatService';
 
@@ -9,6 +9,7 @@ const inputMessage = ref('');
 const isInitialized = ref(false);
 const quickReplies = ref([]);
 const quickRepliesInitialized = ref(false);
+const currentAgentStatus = ref(agentStatuses.IDLE);
 
 export function useChatBusiness() {
   const dataLayer = useChatData();
@@ -166,6 +167,13 @@ export function useChatBusiness() {
       dataLayer.updateMessage(payload.sessionId, payload.messageId, {
         status: messageStatuses.READ
       });
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.AGENT_STATUS_CHANGED, (payload) => {
+      if (payload && payload.status) {
+        currentAgentStatus.value = payload.status;
+        console.log('客服状态变化:', payload);
+      }
     });
 
     chatService.on(WS_MESSAGE_TYPES.ERROR, (payload) => {
@@ -334,6 +342,11 @@ export function useChatBusiness() {
     return chatService.deleteQuickReply(id);
   }
 
+  function updateAgentStatus(status) {
+    console.log('chatBusiness updateAgentStatus:', status);
+    return chatService.updateAgentStatus(status);
+  }
+
   return {
     selectedSessionId,
     selectedSession,
@@ -345,6 +358,8 @@ export function useChatBusiness() {
     quickReplies,
     sortedQuickReplies,
     quickRepliesInitialized,
+    currentAgentStatus,
+    agentStatuses,
     initialize,
     selectSession,
     acceptSession,
@@ -356,7 +371,8 @@ export function useChatBusiness() {
     clearInputMessage,
     createQuickReply,
     updateQuickReply,
-    deleteQuickReply
+    deleteQuickReply,
+    updateAgentStatus
   };
 }
 

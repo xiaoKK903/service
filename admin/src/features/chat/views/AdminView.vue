@@ -3,7 +3,22 @@
     <header class="admin-header">
       <h1>人工客服工作台</h1>
       <div class="header-info">
-        <span class="agent-status">在线客服</span>
+        <div class="status-selector">
+          <span class="status-label">状态:</span>
+          <select 
+            v-model="currentStatus" 
+            @change="handleStatusChange"
+            class="status-dropdown"
+          >
+            <option :value="AGENT_STATUS_IDLE">空闲</option>
+            <option :value="AGENT_STATUS_BUSY">忙碌</option>
+            <option :value="AGENT_STATUS_OFFLINE">离线</option>
+          </select>
+          <span 
+            class="status-indicator" 
+            :class="getStatusClass(currentStatus)"
+          ></span>
+        </div>
         <span class="unread-count" v-if="totalUnreadCount > 0">
           未读消息: {{ totalUnreadCount }}
         </span>
@@ -49,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import SessionList from '../components/SessionList.vue';
 import ChatWindow from '../components/ChatWindow.vue';
 import QuickReplyManager from '../components/QuickReplyManager.vue';
@@ -72,6 +87,40 @@ const quickReplies = computed(() => store.sortedQuickReplies.value);
 const waitingCount = computed(() => store.waitingSessions.value.length);
 const activeCount = computed(() => store.activeSessions.value.length);
 const closedCount = computed(() => store.closedSessions.value.length);
+
+const AGENT_STATUS_IDLE = 'idle';
+const AGENT_STATUS_BUSY = 'busy';
+const AGENT_STATUS_OFFLINE = 'offline';
+
+const currentStatus = ref(AGENT_STATUS_IDLE);
+
+watch(
+  () => store.currentAgentStatus.value,
+  (newStatus) => {
+    if (newStatus) {
+      currentStatus.value = newStatus;
+    }
+  },
+  { immediate: true }
+);
+
+function getStatusClass(status) {
+  switch (status) {
+    case AGENT_STATUS_IDLE:
+      return 'idle';
+    case AGENT_STATUS_BUSY:
+      return 'busy';
+    case AGENT_STATUS_OFFLINE:
+      return 'offline';
+    default:
+      return 'offline';
+  }
+}
+
+function handleStatusChange() {
+  console.log('状态切换:', currentStatus.value);
+  store.updateAgentStatus(currentStatus.value);
+}
 
 async function handleSelectSession(sessionId) {
   await store.selectSession(sessionId);
@@ -144,10 +193,54 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.agent-status {
+.status-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 4px 12px;
   background-color: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
+}
+
+.status-label {
+  white-space: nowrap;
+}
+
+.status-dropdown {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.status-dropdown:hover {
+  background-color: white;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator.idle {
+  background-color: #52c41a;
+  box-shadow: 0 0 6px #52c41a;
+}
+
+.status-indicator.busy {
+  background-color: #faad14;
+  box-shadow: 0 0 6px #faad14;
+}
+
+.status-indicator.offline {
+  background-color: #ff4d4f;
+  box-shadow: 0 0 6px #ff4d4f;
 }
 
 .unread-count {

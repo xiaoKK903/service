@@ -364,6 +364,16 @@ export function useChatService() {
     });
   }
 
+  function updateAgentStatus(status) {
+    console.log('chatService updateAgentStatus:', status);
+    return send({
+      type: WS_MESSAGE_TYPES.AGENT_STATUS_UPDATE,
+      payload: {
+        status
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -388,7 +398,8 @@ export function useChatService() {
     getQuickReplyList,
     createQuickReply,
     updateQuickReply,
-    deleteQuickReply
+    deleteQuickReply,
+    updateAgentStatus
   };
 }
 
