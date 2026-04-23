@@ -96,14 +96,17 @@ async function handleSendMessage(content) {
 }
 
 function handleCreateQuickReply(data) {
+  console.log('AdminView handleCreateQuickReply:', data);
   quickReplyStore.createQuickReply(data);
 }
 
 function handleUpdateQuickReply(data) {
+  console.log('AdminView handleUpdateQuickReply:', data);
   quickReplyStore.updateQuickReply(data);
 }
 
 function handleDeleteQuickReply(id) {
+  console.log('AdminView handleDeleteQuickReply:', id);
   quickReplyStore.deleteQuickReply(id);
 }
 
