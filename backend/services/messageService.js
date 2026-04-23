@@ -6,12 +6,14 @@ class MessageService {
     this.messages = new Map();
   }
 
-  createMessage({ content, sender, type, sessionId, agentId, userId }) {
+  createMessage({ content, sender, type, sessionId, agentId, userId, status }) {
+    const messageStatus = status || (sender === messageSenders.SYSTEM ? messageStatuses.SENT : messageStatuses.SENDING);
+    
     const message = new Message({
       content,
       sender,
       type: type || messageTypes.TEXT,
-      status: messageStatuses.SENDING,
+      status: messageStatus,
       sessionId,
       agentId,
       userId
