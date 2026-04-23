@@ -35,6 +35,8 @@ export function useChatStore() {
   const inputMessage = computed(() => businessLayer.inputMessage.value);
   const canSendMessage = computed(() => businessLayer.canSendMessage.value);
   const isWebSocketConnected = computed(() => chatService.isConnected.value);
+  const quickReplies = computed(() => businessLayer.quickReplies.value);
+  const sortedQuickReplies = computed(() => businessLayer.sortedQuickReplies.value);
 
   const constants = {
     sessionStatuses,
@@ -104,6 +106,18 @@ export function useChatStore() {
     chatService.disconnect();
   }
 
+  function createQuickReply({ keyword, content, sortOrder }) {
+    return businessLayer.createQuickReply({ keyword, content, sortOrder });
+  }
+
+  function updateQuickReply({ id, keyword, content, sortOrder }) {
+    return businessLayer.updateQuickReply({ id, keyword, content, sortOrder });
+  }
+
+  function deleteQuickReply(id) {
+    return businessLayer.deleteQuickReply(id);
+  }
+
   return {
     state,
     getters,
@@ -120,6 +134,8 @@ export function useChatStore() {
     inputMessage,
     canSendMessage,
     isWebSocketConnected,
+    quickReplies,
+    sortedQuickReplies,
     constants,
     initialize,
     selectSession,
@@ -132,7 +148,10 @@ export function useChatStore() {
     getSessionById,
     getMessagesBySessionId,
     refreshSessions,
-    disconnectWebSocket
+    disconnectWebSocket,
+    createQuickReply,
+    updateQuickReply,
+    deleteQuickReply
   };
 }
 
