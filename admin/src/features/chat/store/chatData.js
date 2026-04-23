@@ -1,6 +1,5 @@
 import { ref, computed } from 'vue';
-import { createMessage, createSession, sessionStatuses, messageTypes, messageSenders, messageStatuses } from '../types/messageTypes';
-import { getMockSessions, getMockMessages, getAllMockMessages } from '../mocks/sessionMocks';
+import { sessionStatuses } from '../types/messageTypes';
 
 const sessions = ref([]);
 const messages = ref({});
@@ -25,8 +24,13 @@ export function useChatData() {
 
   function initializeData(agentId) {
     currentAgent.value = agentId;
-    sessions.value = getMockSessions();
-    messages.value = getAllMockMessages();
+    sessions.value = [];
+    messages.value = {};
+  }
+
+  function setSessions(sessionList) {
+    sessions.value = sessionList;
+    sortSessionsByTime();
   }
 
   function getSessionById(sessionId) {
@@ -37,16 +41,25 @@ export function useChatData() {
     return messages.value[sessionId] ? [...messages.value[sessionId]] : [];
   }
 
+  function setSessionMessages(sessionId, messageList) {
+    messages.value[sessionId] = messageList;
+  }
+
   function addSession(sessionData) {
-    const session = createSession(sessionData);
-    sessions.value.unshift(session);
-    return session;
+    const existingSession = getSessionById(sessionData.id);
+    if (existingSession) {
+      return updateSession(sessionData.id, sessionData);
+    }
+    sessions.value.unshift(sessionData);
+    sortSessionsByTime();
+    return sessionData;
   }
 
   function updateSession(sessionId, updates) {
     const index = sessions.value.findIndex(s => s.id === sessionId);
     if (index !== -1) {
       sessions.value[index] = { ...sessions.value[index], ...updates };
+      sortSessionsByTime();
       return sessions.value[index];
     }
     return null;
@@ -61,14 +74,19 @@ export function useChatData() {
   }
 
   function addMessageToSession(sessionId, messageData) {
-    const message = createMessage({ ...messageData, sessionId });
-    
     if (!messages.value[sessionId]) {
       messages.value[sessionId] = [];
     }
     
-    messages.value[sessionId].push(message);
-    return message;
+    const existingMessage = messages.value[sessionId].find(m => m.id === messageData.id);
+    if (existingMessage) {
+      const index = messages.value[sessionId].indexOf(existingMessage);
+      messages.value[sessionId][index] = { ...existingMessage, ...messageData };
+      return messages.value[sessionId][index];
+    }
+    
+    messages.value[sessionId].push(messageData);
+    return messageData;
   }
 
   function updateMessage(sessionId, messageId, updates) {
@@ -103,6 +121,7 @@ export function useChatData() {
     if (session) {
       session.lastMessage = message;
       session.lastMessageTime = timestamp || Date.now();
+      sortSessionsByTime();
     }
   }
 
@@ -127,8 +146,10 @@ export function useChatData() {
     closedSessions,
     totalUnreadCount,
     initializeData,
+    setSessions,
     getSessionById,
     getMessagesBySessionId,
+    setSessionMessages,
     addSession,
     updateSession,
     removeSession,

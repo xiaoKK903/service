@@ -2,6 +2,14 @@
   <div class="chat-container">
     <header class="chat-header">
       <h1>智能客服</h1>
+      <div class="header-info">
+        <span class="connection-status" :class="{ connected: isConnected }">
+          {{ isConnected ? '已连接' : '连接中...' }}
+        </span>
+        <span v-if="currentSession" class="session-status" :class="currentSession.status">
+          {{ getStatusText(currentSession.status) }}
+        </span>
+      </div>
     </header>
 
     <div class="message-list" ref="messageListRef">
@@ -11,22 +19,24 @@
         :class="['message-item', isFromMe(message.sender) ? 'from-me' : 'from-server']"
       >
         <div class="message-sender">
-          {{ isFromMe(message.sender) ? '我' : '客服' }}
+          {{ isFromMe(message.sender) ? '我' : getSenderName(message.sender) }}
           <span class="message-time">{{ formatTime(message.timestamp) }}</span>
         </div>
         <div class="message-bubble">
           {{ message.content }}
         </div>
+        <div v-if="isFromMe(message.sender)" class="message-status">
+          {{ getMessageStatusText(message.status) }}
+        </div>
       </div>
       
-      <div v-if="isSending && !sending" class="message-item from-me">
+      <div v-if="isSending" class="message-item from-me">
         <div class="message-sender">我</div>
         <div class="message-bubble">发送中...</div>
       </div>
       
-      <div v-if="sending" class="message-item from-server">
-        <div class="message-sender">客服</div>
-        <div class="message-bubble">正在输入...</div>
+      <div v-if="!isConnected" class="connecting-message">
+        <p>正在连接客服，请稍候...</p>
       </div>
     </div>
 
@@ -38,14 +48,14 @@
           placeholder="输入消息..."
           @keypress.enter.prevent="handleSend"
           :maxlength="500"
-          :disabled="isSending"
+          :disabled="!canSend"
         />
         <div class="char-count">{{ inputMessage.length }}/500</div>
       </div>
       <button 
         class="send-button"
         @click="handleSend"
-        :disabled="isSending || !inputMessage.trim()"
+        :disabled="!canSend"
       >
         {{ isSending ? '发送中' : '发送' }}
       </button>
@@ -54,21 +64,80 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useChatStore } from '../store/chatStore';
+import { messageSenders, messageStatuses, sessionStatuses, formatTime } from '../types/messageTypes';
+
+const chatStore = useChatStore();
 
 const { 
   messages, 
   isSending, 
+  currentSession,
+  canSendMessage,
   initializeStore, 
-  sendUserMessage,
-  formatTime,
-  isFromMe
-} = useChatStore();
+  sendUserMessage
+} = chatStore;
 
 const messageListRef = ref(null);
 const inputMessage = ref('');
-const sending = ref(false);
+
+const isConnected = computed(() => {
+  return chatStore.canSendMessage.value;
+});
+
+const canSend = computed(() => {
+  return chatStore.canSendMessage.value && 
+         inputMessage.value.trim() && 
+         !isSending.value;
+});
+
+function isFromMe(sender) {
+  return sender === messageSenders.USER;
+}
+
+function getSenderName(sender) {
+  switch (sender) {
+    case messageSenders.AGENT:
+      return '客服';
+    case messageSenders.SYSTEM:
+      return '系统';
+    default:
+      return '客服';
+  }
+}
+
+function getStatusText(status) {
+  switch (status) {
+    case sessionStatuses.WAITING:
+      return '等待客服接入...';
+    case sessionStatuses.ACTIVE:
+      return '客服已接入';
+    case sessionStatuses.CLOSED:
+      return '会话已结束';
+    default:
+      return status;
+  }
+}
+
+function getMessageStatusText(status) {
+  switch (status) {
+    case messageStatuses.PENDING:
+      return '待发送';
+    case messageStatuses.SENDING:
+      return '发送中';
+    case messageStatuses.SENT:
+      return '已发送';
+    case messageStatuses.DELIVERED:
+      return '已送达';
+    case messageStatuses.READ:
+      return '已读';
+    case messageStatuses.ERROR:
+      return '发送失败';
+    default:
+      return '';
+  }
+}
 
 function scrollToBottom() {
   nextTick(() => {
@@ -82,14 +151,12 @@ async function handleSend() {
   const trimmedMessage = inputMessage.value.trim();
   if (!trimmedMessage) return;
   if (trimmedMessage.length > 500) return;
-  if (isSending.value) return;
+  if (!canSend.value) return;
 
   inputMessage.value = '';
   scrollToBottom();
   
-  sending.value = true;
   await sendUserMessage(trimmedMessage);
-  sending.value = false;
   
   scrollToBottom();
 }
@@ -115,16 +182,51 @@ onMounted(() => {
 }
 
 .chat-header {
-  padding: 16px;
+  padding: 12px 16px;
   background-color: #667eea;
   color: white;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
+}
+
+.header-info {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.connection-status {
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.connection-status.connected {
+  background-color: rgba(82, 196, 26, 0.3);
+}
+
+.session-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.session-status.waiting {
+  background-color: rgba(250, 140, 22, 0.3);
+}
+
+.session-status.active {
+  background-color: rgba(24, 144, 255, 0.3);
+}
+
+.session-status.closed {
+  background-color: rgba(153, 153, 153, 0.3);
 }
 
 .message-list {
@@ -155,6 +257,10 @@ onMounted(() => {
   align-items: center;
 }
 
+.message-item.from-me .message-sender {
+  justify-content: flex-end;
+}
+
 .message-time {
   margin-left: 8px;
   font-size: 10px;
@@ -179,6 +285,22 @@ onMounted(() => {
   color: #333;
   border-bottom-left-radius: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.message-status {
+  font-size: 10px;
+  color: #999;
+  margin-top: 4px;
+  text-align: right;
+}
+
+.connecting-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #999;
+  font-size: 14px;
 }
 
 .input-container {
