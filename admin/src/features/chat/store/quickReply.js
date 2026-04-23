@@ -78,14 +78,17 @@ function useQuickReplyStore() {
   }
 
   function createQuickReply({ keyword, content, sortOrder }) {
+    console.log('quickReplyStore createQuickReply:', { keyword, content, sortOrder });
     return chatService.createQuickReply({ keyword, content, sortOrder });
   }
 
   function updateQuickReply({ id, keyword, content, sortOrder }) {
+    console.log('quickReplyStore updateQuickReply:', { id, keyword, content, sortOrder });
     return chatService.updateQuickReply({ id, keyword, content, sortOrder });
   }
 
   function deleteQuickReply(id) {
+    console.log('quickReplyStore deleteQuickReply:', id);
     return chatService.deleteQuickReply(id);
   }
 

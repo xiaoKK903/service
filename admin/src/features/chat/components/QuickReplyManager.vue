@@ -127,7 +127,9 @@ const defaultForm = {
 const editForm = ref({ ...defaultForm });
 
 const canSave = computed(() => {
-  return editForm.value.keyword.trim() && editForm.value.content.trim();
+  const keyword = editForm.value && editForm.value.keyword;
+  const content = editForm.value && editForm.value.content;
+  return (keyword && keyword.trim()) && (content && content.trim());
 });
 
 watch(() => props.visible, (val) => {
@@ -175,13 +177,19 @@ function cancelEdit() {
 }
 
 function saveEdit() {
-  if (!canSave.value) return;
+  console.log('saveEdit called, canSave:', canSave.value, 'editForm:', editForm.value);
+  if (!canSave.value) {
+    console.log('saveEdit: canSave is false, returning');
+    return;
+  }
   
   const data = {
-    keyword: editForm.value.keyword.trim(),
-    content: editForm.value.content.trim(),
-    sortOrder: editForm.value.sortOrder || 0
+    keyword: (editForm.value.keyword || '').trim(),
+    content: (editForm.value.content || '').trim(),
+    sortOrder: editForm.value.sortOrder !== undefined ? editForm.value.sortOrder : 0
   };
+  
+  console.log('saveEdit: emitting', isEditMode.value ? 'update' : 'create', 'with data:', data);
   
   if (isEditMode.value) {
     emit('update', { id: editForm.value.id, ...data });

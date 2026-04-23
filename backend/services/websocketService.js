@@ -459,6 +459,7 @@ class WebSocketService {
   }
 
   handleQuickReplyList(ws, payload) {
+    console.log('handleQuickReplyList called, payload:', payload);
     const clientInfo = this.connectionToClient.get(ws);
     if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
       this.sendError(ws, '只有客服可以获取快捷短语');
@@ -466,6 +467,7 @@ class WebSocketService {
     }
 
     const quickReplies = quickReplyService.getAllQuickReplies();
+    console.log('handleQuickReplyList: sending quickReplies:', quickReplies);
     this.send(ws, {
       type: wsMessageTypes.QUICK_REPLY_LIST_RESPONSE,
       payload: {
@@ -475,6 +477,7 @@ class WebSocketService {
   }
 
   handleQuickReplyCreate(ws, payload) {
+    console.log('handleQuickReplyCreate called, payload:', payload);
     const clientInfo = this.connectionToClient.get(ws);
     if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
       this.sendError(ws, '只有客服可以创建快捷短语');
@@ -488,6 +491,7 @@ class WebSocketService {
     }
 
     const quickReply = quickReplyService.createQuickReply({ keyword, content, sortOrder });
+    console.log('handleQuickReplyCreate: created quickReply:', quickReply);
     
     this.send(ws, {
       type: wsMessageTypes.QUICK_REPLY_CREATED,

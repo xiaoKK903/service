@@ -223,11 +223,13 @@ export function useChatService() {
   }
 
   function send(data) {
+    console.log('chatService send:', data, 'webSocket:', webSocket, 'readyState:', webSocket ? webSocket.readyState : 'null');
     if (webSocket && webSocket.readyState === WebSocket.OPEN) {
       webSocket.send(JSON.stringify(data));
+      console.log('chatService send: message sent successfully');
       return true;
     }
-    console.error('WebSocket未连接');
+    console.error('WebSocket未连接, readyState:', webSocket ? webSocket.readyState : 'null');
     return false;
   }
 
@@ -328,6 +330,7 @@ export function useChatService() {
   }
 
   function createQuickReply({ keyword, content, sortOrder }) {
+    console.log('chatService createQuickReply:', { keyword, content, sortOrder });
     return send({
       type: WS_MESSAGE_TYPES.QUICK_REPLY_CREATE,
       payload: {
@@ -339,6 +342,7 @@ export function useChatService() {
   }
 
   function updateQuickReply({ id, keyword, content, sortOrder }) {
+    console.log('chatService updateQuickReply:', { id, keyword, content, sortOrder });
     return send({
       type: WS_MESSAGE_TYPES.QUICK_REPLY_UPDATE,
       payload: {
@@ -351,6 +355,7 @@ export function useChatService() {
   }
 
   function deleteQuickReply(id) {
+    console.log('chatService deleteQuickReply:', id);
     return send({
       type: WS_MESSAGE_TYPES.QUICK_REPLY_DELETE,
       payload: {
