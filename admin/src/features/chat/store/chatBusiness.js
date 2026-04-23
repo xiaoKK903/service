@@ -124,6 +124,7 @@ export function useChatBusiness() {
       dataLayer.resetUnreadCount(sessionId);
       
       const existingMessages = dataLayer.getMessagesBySessionId(sessionId);
+      
       if (existingMessages.length === 0) {
         try {
           const response = await chatService.getSessionMessages(sessionId);
@@ -133,6 +134,15 @@ export function useChatBusiness() {
         } catch (error) {
           console.error('加载会话消息失败:', error);
         }
+      }
+      
+      const currentMessages = dataLayer.getMessagesBySessionId(sessionId);
+      const lastUserMessage = currentMessages
+        .filter(m => m.sender === messageSenders.USER && m.status !== messageStatuses.READ)
+        .slice(-1)[0];
+      
+      if (lastUserMessage) {
+        chatService.markMessageAsRead(sessionId, lastUserMessage.id);
       }
     }
   }

@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 const { wsMessageTypes, clientTypes, messageSenders, messageStatuses, sessionStatuses } = require('../utils/constants');
 const sessionService = require('./sessionService');
 const messageService = require('./messageService');
+const quickReplyService = require('./quickReplyService');
 
 class WebSocketService {
   constructor() {
@@ -71,6 +72,22 @@ class WebSocketService {
         
         case wsMessageTypes.MESSAGE_READ:
           this.handleMessageRead(ws, payload);
+          break;
+        
+        case wsMessageTypes.QUICK_REPLY_LIST:
+          this.handleQuickReplyList(ws, payload);
+          break;
+        
+        case wsMessageTypes.QUICK_REPLY_CREATE:
+          this.handleQuickReplyCreate(ws, payload);
+          break;
+        
+        case wsMessageTypes.QUICK_REPLY_UPDATE:
+          this.handleQuickReplyUpdate(ws, payload);
+          break;
+        
+        case wsMessageTypes.QUICK_REPLY_DELETE:
+          this.handleQuickReplyDelete(ws, payload);
           break;
         
         default:
@@ -433,6 +450,113 @@ class WebSocketService {
       type: wsMessageTypes.SESSION_LIST,
       payload: {
         sessions: sortedSessions.map(s => s.toJSON())
+      }
+    };
+
+    this.agentConnections.forEach(connections => {
+      connections.forEach(ws => this.send(ws, message));
+    });
+  }
+
+  handleQuickReplyList(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '只有客服可以获取快捷短语');
+      return;
+    }
+
+    const quickReplies = quickReplyService.getAllQuickReplies();
+    this.send(ws, {
+      type: wsMessageTypes.QUICK_REPLY_LIST_RESPONSE,
+      payload: {
+        quickReplies: quickReplies.map(qr => qr.toJSON())
+      }
+    });
+  }
+
+  handleQuickReplyCreate(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '只有客服可以创建快捷短语');
+      return;
+    }
+
+    const { keyword, content, sortOrder } = payload;
+    if (!keyword || !content) {
+      this.sendError(ws, '缺少必要参数');
+      return;
+    }
+
+    const quickReply = quickReplyService.createQuickReply({ keyword, content, sortOrder });
+    
+    this.send(ws, {
+      type: wsMessageTypes.QUICK_REPLY_CREATED,
+      payload: quickReply.toJSON()
+    });
+
+    this.broadcastQuickRepliesToAgents();
+  }
+
+  handleQuickReplyUpdate(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '只有客服可以更新快捷短语');
+      return;
+    }
+
+    const { id, keyword, content, sortOrder } = payload;
+    if (!id) {
+      this.sendError(ws, '缺少必要参数');
+      return;
+    }
+
+    const quickReply = quickReplyService.updateQuickReply(id, { keyword, content, sortOrder });
+    if (!quickReply) {
+      this.sendError(ws, '快捷短语不存在');
+      return;
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.QUICK_REPLY_UPDATED,
+      payload: quickReply.toJSON()
+    });
+
+    this.broadcastQuickRepliesToAgents();
+  }
+
+  handleQuickReplyDelete(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '只有客服可以删除快捷短语');
+      return;
+    }
+
+    const { id } = payload;
+    if (!id) {
+      this.sendError(ws, '缺少必要参数');
+      return;
+    }
+
+    const success = quickReplyService.deleteQuickReply(id);
+    if (!success) {
+      this.sendError(ws, '快捷短语不存在');
+      return;
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.QUICK_REPLY_DELETED,
+      payload: { id }
+    });
+
+    this.broadcastQuickRepliesToAgents();
+  }
+
+  broadcastQuickRepliesToAgents() {
+    const quickReplies = quickReplyService.getAllQuickReplies();
+    const message = {
+      type: wsMessageTypes.QUICK_REPLY_LIST_RESPONSE,
+      payload: {
+        quickReplies: quickReplies.map(qr => qr.toJSON())
       }
     };
 

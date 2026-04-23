@@ -25,23 +25,32 @@
       </div>
     </div>
 
-    <div class="chat-messages" ref="messagesContainerRef">
-      <div v-if="!session" class="empty-state">
-        <p>请选择一个会话开始聊天</p>
+    <div class="chat-main">
+      <div class="chat-messages" ref="messagesContainerRef">
+        <div v-if="!session" class="empty-state">
+          <p>请选择一个会话开始聊天</p>
+        </div>
+
+        <div v-else-if="messages.length === 0" class="empty-state">
+          <p>暂无消息</p>
+        </div>
+
+        <div v-else>
+          <MessageBubble 
+            v-for="message in messages" 
+            :key="message.id"
+            :message="message"
+            :show-status="message.sender === 'agent'"
+          />
+        </div>
       </div>
 
-      <div v-else-if="messages.length === 0" class="empty-state">
-        <p>暂无消息</p>
-      </div>
-
-      <div v-else>
-        <MessageBubble 
-          v-for="message in messages" 
-          :key="message.id"
-          :message="message"
-          :show-status="message.sender === 'agent'"
-        />
-      </div>
+      <QuickReplyPanel 
+        v-if="showQuickReplyPanel && quickReplies.length > 0"
+        :quick-replies="quickReplies"
+        @select="handleQuickReplySelect"
+        @open-manager="$emit('open-quick-reply-manager')"
+      />
     </div>
 
     <div v-if="session && session.status !== sessionStatuses.CLOSED" class="chat-input">
@@ -56,6 +65,14 @@
         />
         <div class="char-count">{{ inputValue.length }}/500</div>
       </div>
+      <button 
+        class="quick-reply-btn"
+        @click="toggleQuickReplyPanel"
+        :class="{ active: showQuickReplyPanel }"
+        title="快捷短语"
+      >
+        短语
+      </button>
       <button 
         class="send-btn"
         :disabled="!canSend"
@@ -74,6 +91,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import MessageBubble from './MessageBubble.vue';
+import QuickReplyPanel from './QuickReplyPanel.vue';
 import { sessionStatuses } from '../types/messageTypes';
 
 const props = defineProps({
@@ -92,13 +110,18 @@ const props = defineProps({
   canSend: {
     type: Boolean,
     default: false
+  },
+  quickReplies: {
+    type: Array,
+    default: () => []
   }
 });
 
-const emit = defineEmits(['send', 'close', 'accept']);
+const emit = defineEmits(['send', 'close', 'accept', 'open-quick-reply-manager']);
 
 const inputValue = ref('');
 const messagesContainerRef = ref(null);
+const showQuickReplyPanel = ref(false);
 
 const statusLabel = computed(() => {
   if (!props.session) return '';
@@ -153,6 +176,20 @@ function handleCloseSession() {
 function handleAcceptSession() {
   if (props.session) {
     emit('accept', props.session.id);
+  }
+}
+
+function toggleQuickReplyPanel() {
+  showQuickReplyPanel.value = !showQuickReplyPanel.value;
+}
+
+function handleQuickReplySelect(item) {
+  if (item && item.content) {
+    inputValue.value = item.content;
+    showQuickReplyPanel.value = false;
+    if (props.canSend) {
+      handleSend();
+    }
   }
 }
 
@@ -242,6 +279,12 @@ onMounted(() => {
   background-color: #5a67d8;
 }
 
+.chat-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
 .chat-messages {
   flex: 1;
   padding: 16px;
@@ -265,7 +308,7 @@ onMounted(() => {
   border-top: 1px solid #e0e0e0;
   background-color: white;
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -300,6 +343,31 @@ onMounted(() => {
   transform: translateY(-50%);
   font-size: 10px;
   color: #999;
+}
+
+.quick-reply-btn {
+  padding: 10px 14px;
+  background-color: #f0f0f0;
+  color: #666;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-reply-btn:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.quick-reply-btn.active {
+  background-color: #667eea;
+  color: white;
+}
+
+.quick-reply-btn.active:hover {
+  background-color: #5a67d8;
 }
 
 .send-btn {
