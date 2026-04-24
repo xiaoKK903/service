@@ -78,7 +78,7 @@
     </div>
 
     <div class="input-container">
-      <div class="input-wrapper">
+      <div class="input-wrapper" ref="inputWrapperRef">
         <input 
           type="text"
           v-model="inputMessage"
@@ -88,7 +88,20 @@
           :disabled="!canInput"
         />
         <div class="char-count">{{ inputMessage.length }}/500</div>
+        
+        <EmojiPanel 
+          v-if="showEmojiPanel"
+          @select="handleEmojiSelect"
+        />
       </div>
+      <button 
+        class="emoji-btn"
+        @click="toggleEmojiPanel"
+        :class="{ active: showEmojiPanel }"
+        title="表情"
+      >
+        😀
+      </button>
       <button 
         class="send-button"
         @click="handleSend"
@@ -104,6 +117,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useChatStore } from '../store/chatStore';
 import { messageSenders, messageStatuses, sessionStatuses, formatTime } from '../types/messageTypes';
+import EmojiPanel from '../components/EmojiPanel.vue';
 
 const chatStore = useChatStore();
 
@@ -119,11 +133,13 @@ const currentSession = computed(() => chatStore.currentSession.value);
 const currentAgentStatus = computed(() => chatStore.currentAgentStatus.value);
 
 const messageListRef = ref(null);
+const inputWrapperRef = ref(null);
 const inputMessage = ref('');
 
 const hoveredMessageId = ref(null);
 const btnHoveredMessageId = ref(null);
 const hoverTimer = ref(null);
+const showEmojiPanel = ref(false);
 
 const isConnected = computed(() => {
   return chatStore.canSendMessage.value;
@@ -281,6 +297,21 @@ function handleRecallClick(message) {
     chatStore.recallMessage(message.id, currentSession.value.id);
   } else {
     console.log('=== 缺少必要参数 ===');
+  }
+}
+
+function toggleEmojiPanel() {
+  showEmojiPanel.value = !showEmojiPanel.value;
+}
+
+function handleEmojiSelect(emoji) {
+  if (emoji && emoji.code) {
+    const trimmedMessage = emoji.code.trim();
+    if (trimmedMessage) {
+      showEmojiPanel.value = false;
+      chatStore.sendUserMessage(trimmedMessage);
+      scrollToBottom();
+    }
   }
 }
 
@@ -614,6 +645,31 @@ onMounted(() => {
   transform: translateY(-50%);
   font-size: 10px;
   color: #999;
+}
+
+.emoji-btn {
+  padding: 10px 14px;
+  background-color: #f0f0f0;
+  color: #666;
+  border: none;
+  border-radius: 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.emoji-btn.active {
+  background-color: #667eea;
+  color: white;
+}
+
+.emoji-btn.active:hover {
+  background-color: #5a67d8;
 }
 
 .send-button {
