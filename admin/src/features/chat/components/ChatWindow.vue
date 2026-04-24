@@ -10,9 +10,18 @@
       <div class="chat-actions">
         <button 
           v-if="session"
-          class="action-btn"
-          :class="{ active: showNotesPanel }"
-          @click="toggleNotesPanel"
+          class="action-btn tab-btn"
+          :class="{ active: activePanelTab === 'visitor' && showNotesPanel }"
+          @click="openPanel('visitor')"
+          title="访客信息"
+        >
+          访客
+        </button>
+        <button 
+          v-if="session"
+          class="action-btn tab-btn"
+          :class="{ active: activePanelTab === 'notes' && showNotesPanel }"
+          @click="openPanel('notes')"
           title="会话备注"
         >
           备注
@@ -80,8 +89,77 @@
 
       <div v-if="showNotesPanel" class="notes-panel">
         <div class="notes-header">
-          <span class="notes-title">会话详情</span>
-          <div class="notes-header-actions">
+          <div class="panel-tabs">
+            <button 
+              class="panel-tab"
+              :class="{ active: activePanelTab === 'visitor' }"
+              @click="activePanelTab = 'visitor'"
+            >
+              访客信息
+            </button>
+            <button 
+              class="panel-tab"
+              :class="{ active: activePanelTab === 'notes' }"
+              @click="activePanelTab = 'notes'"
+            >
+              会话备注
+            </button>
+          </div>
+          <button class="notes-close-btn" @click="toggleNotesPanel">×</button>
+        </div>
+        
+        <div v-if="activePanelTab === 'visitor' && session" class="visitor-info-section">
+          <div class="visitor-tags">
+            <span 
+              v-if="session.device" 
+              class="visitor-tag"
+              :style="{ backgroundColor: getDeviceColor(session.device) + '20', color: getDeviceColor(session.device), borderColor: getDeviceColor(session.device) + '40' }"
+            >
+              设备: {{ getDeviceLabel(session.device) }}
+            </span>
+            <span v-if="session.browser" class="visitor-tag info-tag">
+              浏览器: {{ session.browser }}
+            </span>
+            <span v-if="session.os" class="visitor-tag info-tag">
+              系统: {{ session.os }}
+            </span>
+          </div>
+          
+          <div class="visitor-detail-group">
+            <div v-if="session.referrer" class="visitor-detail">
+              <span class="detail-label">访问来源</span>
+              <span class="detail-value">{{ session.referrer || '直接访问' }}</span>
+            </div>
+            
+            <div v-if="session.ip" class="visitor-detail">
+              <span class="detail-label">IP地址</span>
+              <span class="detail-value">{{ session.ip || '-' }}</span>
+            </div>
+            
+            <div class="visitor-detail">
+              <span class="detail-label">会话时间</span>
+              <span class="detail-value">{{ formatDate(session.createdAt) }}</span>
+            </div>
+          </div>
+          
+          <div v-if="!session.device && !session.browser && !session.os && !session.referrer" class="empty-visitor-info">
+            暂无访客来源信息（新会话创建后自动获取）
+          </div>
+        </div>
+        
+        <div v-else-if="activePanelTab === 'notes'" class="notes-content">
+          <textarea 
+            v-model="notesContent"
+            placeholder="输入备注内容，点击保存按钮保存..."
+            @input="handleNotesInput"
+          ></textarea>
+          <div class="notes-footer">
+            <div class="notes-info">
+              <span v-if="hasUnsavedChanges" class="unsaved-indicator">有未保存的更改</span>
+              <span v-else-if="notesUpdatedAt">
+                最后更新: {{ formatDate(notesUpdatedAt) }}
+              </span>
+            </div>
             <button 
               class="save-notes-btn"
               :disabled="!hasUnsavedChanges || isSavingNotes"
@@ -89,56 +167,6 @@
             >
               {{ isSavingNotes ? '保存中...' : '保存' }}
             </button>
-            <button class="notes-close-btn" @click="toggleNotesPanel">×</button>
-          </div>
-        </div>
-        
-        <div v-if="session" class="visitor-info-section">
-          <div class="section-title">访客来源</div>
-          <div class="visitor-tags">
-            <span 
-              v-if="session.device" 
-              class="visitor-tag"
-              :style="{ backgroundColor: getDeviceColor(session.device) + '20', color: getDeviceColor(session.device), borderColor: getDeviceColor(session.device) + '40' }"
-            >
-              {{ getDeviceLabel(session.device) }}
-            </span>
-            <span v-if="session.browser" class="visitor-tag info-tag">
-              {{ session.browser }}
-            </span>
-            <span v-if="session.os" class="visitor-tag info-tag">
-              {{ session.os }}
-            </span>
-          </div>
-          
-          <div v-if="session.referrer" class="visitor-detail">
-            <span class="detail-label">访问来源:</span>
-            <span class="detail-value">{{ session.referrer }}</span>
-          </div>
-          
-          <div v-if="session.ip" class="visitor-detail">
-            <span class="detail-label">IP地址:</span>
-            <span class="detail-value">{{ session.ip }}</span>
-          </div>
-          
-          <div class="visitor-detail">
-            <span class="detail-label">会话时间:</span>
-            <span class="detail-value">{{ formatDate(session.createdAt) }}</span>
-          </div>
-        </div>
-        
-        <div class="notes-content">
-          <div class="section-title">会话备注</div>
-          <textarea 
-            v-model="notesContent"
-            placeholder="输入备注内容，点击保存按钮保存..."
-            @input="handleNotesInput"
-          ></textarea>
-          <div class="notes-info">
-            <span v-if="hasUnsavedChanges" class="unsaved-indicator">有未保存的更改</span>
-            <span v-else-if="notesUpdatedAt">
-              最后更新: {{ formatDate(notesUpdatedAt) }}
-            </span>
           </div>
         </div>
       </div>
@@ -258,6 +286,8 @@ const isLoadingMore = ref(false);
 const hasMoreMessages = ref(false);
 let scrollTopBeforeLoad = 0;
 let scrollHeightBeforeLoad = 0;
+
+const activePanelTab = ref('visitor');
 
 const hasUnsavedChanges = computed(() => {
   return notesContent.value !== originalNotesContent.value;
@@ -430,6 +460,15 @@ function handleEmojiSelect(emoji) {
 
 function handleMessageRecall(message) {
   emit('recall', message);
+}
+
+function openPanel(tab) {
+  activePanelTab.value = tab;
+  if (!showNotesPanel.value) {
+    showNotesPanel.value = true;
+    showQuickReplyPanel.value = false;
+    showEmojiPanel.value = false;
+  }
 }
 
 function toggleNotesPanel() {
@@ -770,21 +809,38 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
+  padding: 0;
   border-bottom: 1px solid #e0e0e0;
   background-color: #fafafa;
 }
 
-.notes-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
+.panel-tabs {
+  display: flex;
+  flex: 1;
 }
 
-.notes-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.panel-tab {
+  flex: 1;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.panel-tab:hover {
+  background-color: rgba(102, 126, 234, 0.05);
+  color: #667eea;
+}
+
+.panel-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background-color: rgba(102, 126, 234, 0.08);
+  font-weight: 500;
 }
 
 .save-notes-btn {
@@ -833,7 +889,7 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 12px;
+  padding: 16px;
 }
 
 .notes-content textarea {
@@ -860,8 +916,14 @@ onMounted(() => {
   color: #bbb;
 }
 
+.notes-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
 .notes-info {
-  margin-top: 8px;
   font-size: 11px;
   color: #999;
 }
@@ -871,62 +933,67 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .visitor-info-section {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #fafafa;
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
 }
 
 .visitor-tags {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .visitor-tag {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  font-size: 11px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 6px;
   border: 1px solid;
   font-weight: 500;
 }
 
 .visitor-tag.info-tag {
-  background-color: #f0f0f0;
+  background-color: #f5f7fa;
   color: #666;
-  border-color: #e0e0e0;
+  border-color: #e4e7ed;
+}
+
+.visitor-detail-group {
+  margin-top: 16px;
 }
 
 .visitor-detail {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 6px;
-  font-size: 12px;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
 }
 
 .visitor-detail .detail-label {
   color: #999;
-  flex-shrink: 0;
-  min-width: 60px;
+  font-size: 12px;
 }
 
 .visitor-detail .detail-value {
   color: #333;
   word-break: break-all;
-  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.empty-visitor-info {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 13px;
 }
 
 .load-more-indicator {
