@@ -368,6 +368,22 @@ class WebSocketService {
       return;
     }
 
+    const sensitiveCheck = sensitiveWordService.containsSensitiveWord(content);
+    if (sensitiveCheck.contains) {
+      const foundWords = sensitiveCheck.foundWords.map(w => w.word).join('、');
+      console.log(`[WebSocketService] 检测到敏感词: ${foundWords}`);
+      
+      this.send(ws, {
+        type: wsMessageTypes.MESSAGE_SEND_FAILED,
+        payload: {
+          reason: `消息包含敏感词：${foundWords}，请修改后重试`,
+          type: 'sensitive_word'
+        }
+      });
+      
+      return;
+    }
+
     const sender = clientInfo.clientType === clientTypes.USER ? messageSenders.USER : messageSenders.AGENT;
     
     const message = messageService.createMessage({

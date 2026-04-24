@@ -8,6 +8,7 @@ const isSending = ref(false);
 const currentSession = ref(null);
 const isInitialized = ref(false);
 const currentAgentStatus = ref(null);
+const lastSendError = ref(null);
 
 const currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 const currentUserName = `用户${currentUserId.substr(-4)}`;
@@ -151,6 +152,17 @@ export function useChatStore() {
     chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECALL_FAILED, (payload) => {
       console.error('[client chatStore] 撤回失败:', payload.reason);
     });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_SEND_FAILED, (payload) => {
+      console.error('[client chatStore] 消息发送失败:', payload);
+      lastSendError.value = payload;
+      
+      const tempMessage = messages.value.find(m => m.id.startsWith('temp_'));
+      if (tempMessage) {
+        tempMessage.status = messageStatuses.ERROR;
+        tempMessage.sendError = payload;
+      }
+    });
   }
 
   async function initializeStore() {
@@ -235,6 +247,10 @@ export function useChatStore() {
     return chatService.recallMessage(messageId, sessionId);
   }
 
+  function clearSendError() {
+    lastSendError.value = null;
+  }
+
   onUnmounted(() => {
     disconnect();
   });
@@ -245,6 +261,7 @@ export function useChatStore() {
     isSending,
     currentSession,
     currentAgentStatus,
+    lastSendError,
     currentUserId,
     currentUserName,
     sentMessages,
@@ -260,7 +277,8 @@ export function useChatStore() {
     clearMessages,
     sendUserMessage,
     disconnect,
-    recallMessage
+    recallMessage,
+    clearSendError
   };
 }
 

@@ -209,26 +209,50 @@ export function useChatBusiness() {
     });
 
     chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_LIST_RESPONSE, (payload) => {
+      console.log('[chatBusiness] 收到敏感词列表响应:', payload);
       if (payload && payload.words) {
         sensitiveWords.value = payload.words;
-        console.log('[chatBusiness] 敏感词列表:', payload.words.length, '条');
+        console.log('[chatBusiness] 敏感词列表已更新，数量:', payload.words.length, '列表:', payload.words);
       }
     });
 
     chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_CREATED, (payload) => {
-      console.log('[chatBusiness] 敏感词创建成功:', payload);
+      console.log('[chatBusiness] 敏感词已创建:', payload);
+      if (payload) {
+        const exists = sensitiveWords.value.find(w => w.id === payload.id);
+        if (!exists) {
+          sensitiveWords.value.push(payload);
+          sensitiveWords.value.sort((a, b) => a.sortOrder - b.sortOrder);
+          console.log('[chatBusiness] 已添加新敏感词到列表');
+        }
+      }
     });
 
     chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_UPDATED, (payload) => {
-      console.log('[chatBusiness] 敏感词更新成功:', payload);
+      console.log('[chatBusiness] 敏感词已更新:', payload);
+      if (payload) {
+        const index = sensitiveWords.value.findIndex(w => w.id === payload.id);
+        if (index > -1) {
+          sensitiveWords.value[index] = { ...sensitiveWords.value[index], ...payload };
+          sensitiveWords.value.sort((a, b) => a.sortOrder - b.sortOrder);
+          console.log('[chatBusiness] 已更新敏感词');
+        }
+      }
     });
 
     chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_DELETED, (payload) => {
-      console.log('[chatBusiness] 敏感词删除成功:', payload);
+      console.log('[chatBusiness] 敏感词已删除:', payload);
+      if (payload && payload.id) {
+        const index = sensitiveWords.value.findIndex(w => w.id === payload.id);
+        if (index > -1) {
+          sensitiveWords.value.splice(index, 1);
+          console.log('[chatBusiness] 已从列表移除敏感词');
+        }
+      }
     });
 
     chatService.on(WS_MESSAGE_TYPES.ERROR, (payload) => {
-      console.error('WebSocket错误:', payload);
+      console.error('[chatBusiness] WebSocket错误:', payload);
     });
   }
 
