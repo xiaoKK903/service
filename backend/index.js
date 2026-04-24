@@ -4,6 +4,7 @@ const http = require('http');
 const WebSocketService = require('./services/websocketService');
 const sessionService = require('./services/sessionService');
 const messageService = require('./services/messageService');
+const recallService = require('./services/recallService');
 const { sessionStatuses } = require('./utils/constants');
 
 const app = express();
@@ -115,6 +116,33 @@ app.post('/api/sessions/:sessionId/close', (req, res) => {
   });
 });
 
+app.post('/api/messages/recall', (req, res) => {
+  const { messageId, sessionId, senderType } = req.body;
+  
+  if (!messageId || !sessionId) {
+    return res.status(400).json({
+      success: false,
+      message: '缺少必要参数'
+    });
+  }
+  
+  const result = recallService.recallMessage(messageId, sessionId, senderType || 'agent');
+  
+  if (!result.success) {
+    return res.status(400).json({
+      success: false,
+      message: result.reason
+    });
+  }
+  
+  WebSocketService.broadcastMessageRecalled(result.message);
+  
+  res.json({
+    success: true,
+    data: result.message
+  });
+});
+
 app.post('/api/hello', (req, res) => {
   const { message } = req.body;
   
@@ -132,6 +160,7 @@ server.listen(PORT, () => {
   console.log('  GET  http://localhost:3001/api/sessions/:sessionId/messages');
   console.log('  POST http://localhost:3001/api/sessions/:sessionId/accept');
   console.log('  POST http://localhost:3001/api/sessions/:sessionId/close');
+  console.log('  POST http://localhost:3001/api/messages/recall');
   console.log('  POST http://localhost:3001/api/hello');
   console.log('WebSocket服务已启动，支持实时通信');
 });
