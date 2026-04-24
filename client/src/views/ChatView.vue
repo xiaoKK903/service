@@ -78,8 +78,13 @@
     </div>
 
     <div class="input-container">
+      <EmojiPanel 
+        v-if="showEmojiPanel"
+        @select="handleEmojiSelect"
+      />
       <div class="input-wrapper" ref="inputWrapperRef">
         <input 
+          ref="inputRef"
           type="text"
           v-model="inputMessage"
           placeholder="输入消息..."
@@ -88,11 +93,6 @@
           :disabled="!canInput"
         />
         <div class="char-count">{{ inputMessage.length }}/500</div>
-        
-        <EmojiPanel 
-          v-if="showEmojiPanel"
-          @select="handleEmojiSelect"
-        />
       </div>
       <button 
         class="emoji-btn"
@@ -134,6 +134,7 @@ const currentAgentStatus = computed(() => chatStore.currentAgentStatus.value);
 
 const messageListRef = ref(null);
 const inputWrapperRef = ref(null);
+const inputRef = ref(null);
 const inputMessage = ref('');
 
 const hoveredMessageId = ref(null);
@@ -306,12 +307,12 @@ function toggleEmojiPanel() {
 
 function handleEmojiSelect(emoji) {
   if (emoji && emoji.code) {
-    const trimmedMessage = emoji.code.trim();
-    if (trimmedMessage) {
-      showEmojiPanel.value = false;
-      chatStore.sendUserMessage(trimmedMessage);
-      scrollToBottom();
-    }
+    inputMessage.value = inputMessage.value + emoji.code;
+    nextTick(() => {
+      if (inputRef.value) {
+        inputRef.value.focus();
+      }
+    });
   }
 }
 
@@ -612,11 +613,13 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .input-wrapper {
   flex: 1;
   position: relative;
+  min-width: 150px;
 }
 
 .input-wrapper input {

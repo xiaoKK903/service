@@ -59,42 +59,44 @@
       />
     </div>
 
-    <div v-if="session && session.status !== sessionStatuses.CLOSED" class="chat-input">
-      <div class="input-wrapper">
-        <input 
-          ref="inputRef"
-          type="text"
-          v-model="inputValue"
-          placeholder="输入消息..."
-          :maxlength="500"
-          :disabled="isSending"
-          @keypress="handleKeyPress"
-        />
-        <div class="char-count">{{ inputValue.length }}/500</div>
+    <div v-if="session && session.status !== sessionStatuses.CLOSED" class="chat-input-container">
+      <div class="chat-input" :class="{ 'with-emoji-panel': showEmojiPanel }">
+        <div class="input-wrapper">
+          <input 
+            ref="inputRef"
+            type="text"
+            v-model="inputValue"
+            placeholder="输入消息..."
+            :maxlength="500"
+            :disabled="isSending"
+            @keypress="handleKeyPress"
+          />
+          <div class="char-count">{{ inputValue.length }}/500</div>
+        </div>
+        <button 
+          class="emoji-btn"
+          @click="toggleEmojiPanel"
+          :class="{ active: showEmojiPanel }"
+          title="表情"
+        >
+          😀
+        </button>
+        <button 
+          class="quick-reply-btn"
+          @click="toggleQuickReplyPanel"
+          :class="{ active: showQuickReplyPanel }"
+          title="快捷短语"
+        >
+          短语
+        </button>
+        <button 
+          class="send-btn"
+          :disabled="!canSend"
+          @click="handleSend"
+        >
+          {{ isSending ? '发送中' : '发送' }}
+        </button>
       </div>
-      <button 
-        class="emoji-btn"
-        @click="toggleEmojiPanel"
-        :class="{ active: showEmojiPanel }"
-        title="表情"
-      >
-        😀
-      </button>
-      <button 
-        class="quick-reply-btn"
-        @click="toggleQuickReplyPanel"
-        :class="{ active: showQuickReplyPanel }"
-        title="快捷短语"
-      >
-        短语
-      </button>
-      <button 
-        class="send-btn"
-        :disabled="!canSend"
-        @click="handleSend"
-      >
-        {{ isSending ? '发送中' : '发送' }}
-      </button>
     </div>
 
     <div v-if="session?.status === sessionStatuses.CLOSED" class="chat-closed">
@@ -223,9 +225,12 @@ function handleQuickReplySelect(item) {
 
 function handleEmojiSelect(emoji) {
   if (emoji && emoji.code) {
-    if (props.canSend) {
-      emit('send', emoji.code);
-    }
+    inputValue.value = inputValue.value + emoji.code;
+    nextTick(() => {
+      if (inputRef.value) {
+        inputRef.value.focus();
+      }
+    });
   }
 }
 
@@ -343,13 +348,22 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.chat-input-container {
+  background-color: white;
+  border-top: 1px solid #e0e0e0;
+}
+
 .chat-input {
   padding: 12px 16px;
-  border-top: 1px solid #e0e0e0;
-  background-color: white;
   display: flex;
   gap: 8px;
   align-items: center;
+  background-color: white;
+  border-top: 1px solid #e0e0e0;
+}
+
+.chat-input.with-emoji-panel {
+  border-top: none;
 }
 
 .input-wrapper {
