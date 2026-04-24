@@ -124,6 +124,10 @@ export function useChatStore() {
     return businessLayer.updateAgentStatus(status);
   }
 
+  function recallMessage(messageId, sessionId) {
+    return businessLayer.recallMessage(messageId, sessionId);
+  }
+
   return {
     state,
     getters,
@@ -159,7 +163,8 @@ export function useChatStore() {
     createQuickReply,
     updateQuickReply,
     deleteQuickReply,
-    updateAgentStatus
+    updateAgentStatus,
+    recallMessage
   };
 }
 

@@ -49,6 +49,7 @@
         @close="handleCloseSession"
         @accept="handleAcceptSession"
         @open-quick-reply-manager="showQuickReplyManager = true"
+        @recall="handleMessageRecall"
       />
     </main>
 
@@ -155,6 +156,13 @@ function handleUpdateQuickReply(data) {
 function handleDeleteQuickReply(id) {
   console.log('AdminView handleDeleteQuickReply:', id);
   store.deleteQuickReply(id);
+}
+
+function handleMessageRecall(message) {
+  console.log('AdminView handleMessageRecall:', message.id, 'sessionId:', selectedSessionId.value);
+  if (message && selectedSessionId.value) {
+    store.recallMessage(message.id, selectedSessionId.value);
+  }
 }
 
 onMounted(() => {

@@ -187,6 +187,20 @@ export function useChatBusiness() {
       }
     });
 
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECALLED, (payload) => {
+      if (payload && payload.messageId && payload.sessionId) {
+        console.log('[chatBusiness] 消息已撤回:', payload.messageId);
+        dataLayer.updateMessage(payload.sessionId, payload.messageId, {
+          recalled: true,
+          recalledAt: payload.recalledAt
+        });
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECALL_FAILED, (payload) => {
+      console.error('[chatBusiness] 撤回失败:', payload.reason);
+    });
+
     chatService.on(WS_MESSAGE_TYPES.ERROR, (payload) => {
       console.error('WebSocket错误:', payload);
     });
@@ -354,6 +368,11 @@ export function useChatBusiness() {
     return chatService.updateAgentStatus(status);
   }
 
+  function recallMessage(messageId, sessionId) {
+    console.log('chatBusiness recallMessage:', messageId, sessionId);
+    return chatService.recallMessage(messageId, sessionId);
+  }
+
   return {
     selectedSessionId,
     selectedSession,
@@ -379,7 +398,8 @@ export function useChatBusiness() {
     createQuickReply,
     updateQuickReply,
     deleteQuickReply,
-    updateAgentStatus
+    updateAgentStatus,
+    recallMessage
   };
 }
 

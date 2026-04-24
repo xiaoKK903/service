@@ -24,6 +24,10 @@ const WS_MESSAGE_TYPES = {
   AGENT_STATUS_UPDATE: 'agent_status_update',
   AGENT_STATUS_CHANGED: 'agent_status_changed',
   
+  MESSAGE_RECALL: 'message_recall',
+  MESSAGE_RECALLED: 'message_recalled',
+  MESSAGE_RECALL_FAILED: 'message_recall_failed',
+  
   ERROR: 'error'
 };
 
@@ -236,6 +240,17 @@ export function useChatService() {
     });
   }
 
+  function recallMessage(messageId, sessionId) {
+    console.log('client chatService recallMessage:', messageId, sessionId);
+    return send({
+      type: WS_MESSAGE_TYPES.MESSAGE_RECALL,
+      payload: {
+        messageId,
+        sessionId
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -251,7 +266,8 @@ export function useChatService() {
     createSession,
     sendMessage,
     closeSession,
-    markMessageAsRead
+    markMessageAsRead,
+    recallMessage
   };
 }
 

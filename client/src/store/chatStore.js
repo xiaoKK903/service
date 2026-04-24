@@ -133,6 +133,24 @@ export function useChatStore() {
         console.log('客服状态变化:', payload);
       }
     });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECALLED, (payload) => {
+      if (payload && payload.messageId && payload.sessionId) {
+        console.log('[client chatStore] 消息已撤回:', payload.messageId);
+        const index = messages.value.findIndex(m => m.id === payload.messageId);
+        if (index > -1) {
+          messages.value[index] = {
+            ...messages.value[index],
+            recalled: true,
+            recalledAt: payload.recalledAt
+          };
+        }
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECALL_FAILED, (payload) => {
+      console.error('[client chatStore] 撤回失败:', payload.reason);
+    });
   }
 
   async function initializeStore() {
@@ -212,6 +230,11 @@ export function useChatStore() {
     chatService.disconnect();
   }
 
+  function recallMessage(messageId, sessionId) {
+    console.log('[client chatStore] 撤回消息:', messageId, sessionId);
+    return chatService.recallMessage(messageId, sessionId);
+  }
+
   onUnmounted(() => {
     disconnect();
   });
@@ -236,7 +259,8 @@ export function useChatStore() {
     updateMessage,
     clearMessages,
     sendUserMessage,
-    disconnect
+    disconnect,
+    recallMessage
   };
 }
 
