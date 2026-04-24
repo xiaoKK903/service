@@ -420,7 +420,7 @@ export function useChatService() {
     });
   }
 
-  function createSensitiveWord(word, category, sortOrder) {
+  function createSensitiveWord({ word, category, sortOrder }) {
     console.log('chatService createSensitiveWord:', word, category);
     return send({
       type: WS_MESSAGE_TYPES.SENSITIVE_WORD_CREATE,
@@ -432,8 +432,8 @@ export function useChatService() {
     });
   }
 
-  function updateSensitiveWord(id, { word, category, sortOrder }) {
-    console.log('chatService updateSensitiveWord:', id);
+  function updateSensitiveWord({ id, word, category, sortOrder }) {
+    console.log('chatService updateSensitiveWord:', { id, word, category, sortOrder });
     return send({
       type: WS_MESSAGE_TYPES.SENSITIVE_WORD_UPDATE,
       payload: {

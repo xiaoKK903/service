@@ -430,12 +430,12 @@ export function useChatBusiness() {
 
   function createSensitiveWord({ word, category, sortOrder }) {
     console.log('chatBusiness createSensitiveWord:', { word, category, sortOrder });
-    return chatService.createSensitiveWord(word, category, sortOrder);
+    return chatService.createSensitiveWord({ word, category, sortOrder });
   }
 
   function updateSensitiveWord({ id, word, category, sortOrder }) {
     console.log('chatBusiness updateSensitiveWord:', { id, word, category, sortOrder });
-    return chatService.updateSensitiveWord(id, { word, category, sortOrder });
+    return chatService.updateSensitiveWord({ id, word, category, sortOrder });
   }
 
   function deleteSensitiveWord(id) {
