@@ -47,16 +47,22 @@
       </div>
 
       <QuickReplyPanel 
-        v-if="showQuickReplyPanel"
+        v-if="showQuickReplyPanel && !showEmojiPanel"
         :quick-replies="quickReplies"
         @select="handleQuickReplySelect"
         @open-manager="$emit('open-quick-reply-manager')"
+      />
+
+      <EmojiPanel 
+        v-if="showEmojiPanel && !showQuickReplyPanel"
+        @select="handleEmojiSelect"
       />
     </div>
 
     <div v-if="session && session.status !== sessionStatuses.CLOSED" class="chat-input">
       <div class="input-wrapper">
         <input 
+          ref="inputRef"
           type="text"
           v-model="inputValue"
           placeholder="输入消息..."
@@ -66,6 +72,14 @@
         />
         <div class="char-count">{{ inputValue.length }}/500</div>
       </div>
+      <button 
+        class="emoji-btn"
+        @click="toggleEmojiPanel"
+        :class="{ active: showEmojiPanel }"
+        title="表情"
+      >
+        😀
+      </button>
       <button 
         class="quick-reply-btn"
         @click="toggleQuickReplyPanel"
@@ -93,6 +107,7 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import MessageBubble from './MessageBubble.vue';
 import QuickReplyPanel from './QuickReplyPanel.vue';
+import EmojiPanel from './EmojiPanel.vue';
 import { sessionStatuses } from '../types/messageTypes';
 
 const props = defineProps({
@@ -122,7 +137,9 @@ const emit = defineEmits(['send', 'close', 'accept', 'open-quick-reply-manager',
 
 const inputValue = ref('');
 const messagesContainerRef = ref(null);
+const inputRef = ref(null);
 const showQuickReplyPanel = ref(false);
+const showEmojiPanel = ref(false);
 
 const statusLabel = computed(() => {
   if (!props.session) return '';
@@ -182,6 +199,16 @@ function handleAcceptSession() {
 
 function toggleQuickReplyPanel() {
   showQuickReplyPanel.value = !showQuickReplyPanel.value;
+  if (showQuickReplyPanel.value) {
+    showEmojiPanel.value = false;
+  }
+}
+
+function toggleEmojiPanel() {
+  showEmojiPanel.value = !showEmojiPanel.value;
+  if (showEmojiPanel.value) {
+    showQuickReplyPanel.value = false;
+  }
 }
 
 function handleQuickReplySelect(item) {
@@ -190,6 +217,14 @@ function handleQuickReplySelect(item) {
     showQuickReplyPanel.value = false;
     if (props.canSend) {
       handleSend();
+    }
+  }
+}
+
+function handleEmojiSelect(emoji) {
+  if (emoji && emoji.code) {
+    if (props.canSend) {
+      emit('send', emoji.code);
     }
   }
 }
@@ -348,6 +383,31 @@ onMounted(() => {
   transform: translateY(-50%);
   font-size: 10px;
   color: #999;
+}
+
+.emoji-btn {
+  padding: 10px 14px;
+  background-color: #f0f0f0;
+  color: #666;
+  border: none;
+  border-radius: 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.emoji-btn.active {
+  background-color: #667eea;
+  color: white;
+}
+
+.emoji-btn.active:hover {
+  background-color: #5a67d8;
 }
 
 .quick-reply-btn {
