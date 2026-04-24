@@ -79,6 +79,11 @@ module.exports = {
     SENSITIVE_WORD_DELETE: 'sensitive_word_delete',
     SENSITIVE_WORD_DELETED: 'sensitive_word_deleted',
     
+    TYPING_START: 'typing_start',
+    TYPING_STOP: 'typing_stop',
+    
+    SESSION_NOTES_UPDATE: 'session_notes_update',
+    
     ERROR: 'error'
   },
 

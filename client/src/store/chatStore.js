@@ -9,6 +9,9 @@ const currentSession = ref(null);
 const isInitialized = ref(false);
 const currentAgentStatus = ref(null);
 const lastSendError = ref(null);
+const isAgentTyping = ref(false);
+let typingTimer = null;
+const TYPING_TIMEOUT = 2000;
 
 const currentUserId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 const currentUserName = `用户${currentUserId.substr(-4)}`;
@@ -163,6 +166,18 @@ export function useChatStore() {
         tempMessage.sendError = payload;
       }
     });
+
+    chatService.on(WS_MESSAGE_TYPES.TYPING_START, (payload) => {
+      if (payload && payload.senderType === 'agent') {
+        isAgentTyping.value = true;
+        console.log('[client chatStore] 客服正在输入');
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.TYPING_STOP, (payload) => {
+      isAgentTyping.value = false;
+      console.log('[client chatStore] 客服停止输入');
+    });
   }
 
   async function initializeStore() {
@@ -251,6 +266,33 @@ export function useChatStore() {
     lastSendError.value = null;
   }
 
+  function handleUserTyping() {
+    if (!currentSession.value) return;
+    
+    if (!typingTimer) {
+      chatService.sendTypingStart(currentSession.value.id);
+    }
+    
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+    }
+    
+    typingTimer = setTimeout(() => {
+      chatService.sendTypingStop(currentSession.value.id);
+      typingTimer = null;
+    }, TYPING_TIMEOUT);
+  }
+
+  function stopUserTyping() {
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+      typingTimer = null;
+    }
+    if (currentSession.value) {
+      chatService.sendTypingStop(currentSession.value.id);
+    }
+  }
+
   onUnmounted(() => {
     disconnect();
   });
@@ -262,6 +304,7 @@ export function useChatStore() {
     currentSession,
     currentAgentStatus,
     lastSendError,
+    isAgentTyping,
     currentUserId,
     currentUserName,
     sentMessages,
@@ -278,7 +321,9 @@ export function useChatStore() {
     sendUserMessage,
     disconnect,
     recallMessage,
-    clearSendError
+    clearSendError,
+    handleUserTyping,
+    stopUserTyping
   };
 }
 

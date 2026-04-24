@@ -123,6 +123,18 @@ class WebSocketService {
           this.handleSensitiveWordDelete(ws, payload);
           break;
         
+        case wsMessageTypes.TYPING_START:
+          this.handleTypingStart(ws, payload);
+          break;
+        
+        case wsMessageTypes.TYPING_STOP:
+          this.handleTypingStop(ws, payload);
+          break;
+        
+        case wsMessageTypes.SESSION_NOTES_UPDATE:
+          this.handleSessionNotesUpdate(ws, payload);
+          break;
+        
         default:
           console.log('未知消息类型:', type);
       }
@@ -1075,6 +1087,118 @@ class WebSocketService {
         }
       });
     });
+  }
+
+  handleTypingStart(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    const { sessionId } = payload;
+    if (!sessionId) {
+      this.sendError(ws, '缺少sessionId');
+      return;
+    }
+
+    const session = sessionService.getSession(sessionId);
+    if (!session) {
+      this.sendError(ws, '会话不存在');
+      return;
+    }
+
+    const typingMessage = {
+      type: wsMessageTypes.TYPING_START,
+      payload: {
+        sessionId,
+        senderType: clientInfo.clientType
+      }
+    };
+
+    if (clientInfo.clientType === clientTypes.USER && session.agentId) {
+      this.sendToAgent(session.agentId, typingMessage);
+    } else if (clientInfo.clientType === clientTypes.AGENT && session.userId) {
+      this.sendToUser(session.userId, typingMessage);
+    }
+
+    console.log(`[WebSocketService] 正在输入开始: ${clientInfo.clientType} - ${sessionId}`);
+  }
+
+  handleTypingStop(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    const { sessionId } = payload;
+    if (!sessionId) {
+      this.sendError(ws, '缺少sessionId');
+      return;
+    }
+
+    const session = sessionService.getSession(sessionId);
+    if (!session) {
+      this.sendError(ws, '会话不存在');
+      return;
+    }
+
+    const typingMessage = {
+      type: wsMessageTypes.TYPING_STOP,
+      payload: {
+        sessionId,
+        senderType: clientInfo.clientType
+      }
+    };
+
+    if (clientInfo.clientType === clientTypes.USER && session.agentId) {
+      this.sendToAgent(session.agentId, typingMessage);
+    } else if (clientInfo.clientType === clientTypes.AGENT && session.userId) {
+      this.sendToUser(session.userId, typingMessage);
+    }
+
+    console.log(`[WebSocketService] 正在输入结束: ${clientInfo.clientType} - ${sessionId}`);
+  }
+
+  handleSessionNotesUpdate(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo || clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '只有客服可以更新会话备注');
+      return;
+    }
+
+    const { sessionId, notes } = payload;
+    if (!sessionId) {
+      this.sendError(ws, '缺少sessionId');
+      return;
+    }
+
+    const session = sessionService.getSession(sessionId);
+    if (!session) {
+      this.sendError(ws, '会话不存在');
+      return;
+    }
+
+    session.notes = notes || '';
+    session.notesUpdatedAt = Date.now();
+
+    if (typeof sessionService.updateSessionNotes === 'function') {
+      sessionService.updateSessionNotes(sessionId, session.notes);
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.SESSION_NOTES_UPDATE,
+      payload: {
+        sessionId,
+        notes: session.notes,
+        notesUpdatedAt: session.notesUpdatedAt
+      }
+    });
+
+    this.broadcastSessionsToAgents();
+
+    console.log(`[WebSocketService] 会话备注更新: ${sessionId}`);
   }
 }
 

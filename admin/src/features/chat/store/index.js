@@ -145,6 +145,22 @@ export function useChatStore() {
     return businessLayer.deleteSensitiveWord(id);
   }
 
+  function handleAgentTyping() {
+    return businessLayer.handleAgentTyping();
+  }
+
+  function stopAgentTyping() {
+    return businessLayer.stopAgentTyping();
+  }
+
+  function isUserTyping(sessionId) {
+    return businessLayer.isUserTyping(sessionId);
+  }
+
+  function updateSessionNotes(sessionId, notes) {
+    return businessLayer.updateSessionNotes(sessionId, notes);
+  }
+
   return {
     state,
     getters,
@@ -186,7 +202,11 @@ export function useChatStore() {
     getSensitiveWordList,
     createSensitiveWord,
     updateSensitiveWord,
-    deleteSensitiveWord
+    deleteSensitiveWord,
+    handleAgentTyping,
+    stopAgentTyping,
+    isUserTyping,
+    updateSessionNotes
   };
 }
 

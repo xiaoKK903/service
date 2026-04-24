@@ -13,6 +13,10 @@ const currentAgentStatus = ref(agentStatuses.IDLE);
 const sensitiveWords = ref([]);
 const sensitiveWordsInitialized = ref(false);
 
+const userTypingStatus = ref(new Map());
+let typingTimer = null;
+const TYPING_TIMEOUT = 2000;
+
 export function useChatBusiness() {
   const dataLayer = useChatData();
   const chatService = useChatService();
@@ -254,6 +258,30 @@ export function useChatBusiness() {
     chatService.on(WS_MESSAGE_TYPES.ERROR, (payload) => {
       console.error('[chatBusiness] WebSocket错误:', payload);
     });
+
+    chatService.on(WS_MESSAGE_TYPES.TYPING_START, (payload) => {
+      if (payload && payload.sessionId && payload.senderType === 'user') {
+        userTypingStatus.value.set(payload.sessionId, true);
+        console.log('[chatBusiness] 用户正在输入:', payload.sessionId);
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.TYPING_STOP, (payload) => {
+      if (payload && payload.sessionId) {
+        userTypingStatus.value.set(payload.sessionId, false);
+        console.log('[chatBusiness] 用户停止输入:', payload.sessionId);
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SESSION_NOTES_UPDATE, (payload) => {
+      if (payload && payload.sessionId) {
+        dataLayer.updateSession(payload.sessionId, {
+          notes: payload.notes,
+          notesUpdatedAt: payload.notesUpdatedAt
+        });
+        console.log('[chatBusiness] 会话备注已更新:', payload.sessionId);
+      }
+    });
   }
 
   async function selectSession(sessionId) {
@@ -443,6 +471,42 @@ export function useChatBusiness() {
     return chatService.deleteSensitiveWord(id);
   }
 
+  function handleAgentTyping() {
+    if (!selectedSessionId.value) return;
+    
+    if (!typingTimer) {
+      chatService.sendTypingStart(selectedSessionId.value);
+    }
+    
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+    }
+    
+    typingTimer = setTimeout(() => {
+      chatService.sendTypingStop(selectedSessionId.value);
+      typingTimer = null;
+    }, TYPING_TIMEOUT);
+  }
+
+  function stopAgentTyping() {
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+      typingTimer = null;
+    }
+    if (selectedSessionId.value) {
+      chatService.sendTypingStop(selectedSessionId.value);
+    }
+  }
+
+  function isUserTyping(sessionId) {
+    return userTypingStatus.value.get(sessionId) || false;
+  }
+
+  function updateSessionNotes(sessionId, notes) {
+    console.log('chatBusiness updateSessionNotes:', sessionId, notes);
+    return chatService.updateSessionNotes(sessionId, notes);
+  }
+
   return {
     selectedSessionId,
     selectedSession,
@@ -474,7 +538,11 @@ export function useChatBusiness() {
     getSensitiveWordList,
     createSensitiveWord,
     updateSensitiveWord,
-    deleteSensitiveWord
+    deleteSensitiveWord,
+    handleAgentTyping,
+    stopAgentTyping,
+    isUserTyping,
+    updateSessionNotes
   };
 }
 

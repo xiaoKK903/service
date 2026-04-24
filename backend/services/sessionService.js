@@ -1,10 +1,28 @@
 const Session = require('../models/session');
 const { sessionStatuses } = require('../utils/constants');
+const storageService = require('./storageService');
 
 class SessionService {
   constructor() {
     this.sessions = new Map();
     this.userSessionMap = new Map();
+    this.loadFromStorage();
+  }
+
+  loadFromStorage() {
+    const loadedSessions = storageService.loadSessions(Session);
+    for (const session of loadedSessions) {
+      this.sessions.set(session.id, session);
+      
+      if (!this.userSessionMap.has(session.userId)) {
+        this.userSessionMap.set(session.userId, []);
+      }
+      this.userSessionMap.get(session.userId).push(session.id);
+    }
+  }
+
+  saveToStorage() {
+    storageService.saveSessions(this.sessions);
   }
 
   createSession({ userId, userName, userAvatar }) {
@@ -141,6 +159,17 @@ class SessionService {
     if (session) {
       session.unreadCount = 0;
     }
+  }
+
+  updateSessionNotes(sessionId, notes) {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.notes = notes || '';
+      session.notesUpdatedAt = Date.now();
+      storageService.updateSessionNotes(sessionId, session.notes);
+      return session;
+    }
+    return null;
   }
 
   sortSessions(sessions) {

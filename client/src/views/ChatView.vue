@@ -72,6 +72,15 @@
         </div>
       </div>
       
+      <div v-if="isAgentTyping" class="typing-indicator">
+        <span>客服正在输入</span>
+        <span class="typing-dots">
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </span>
+      </div>
+      
       <div v-if="!isConnected" class="connecting-message">
         <p>正在连接客服，请稍候...</p>
       </div>
@@ -89,6 +98,7 @@
           v-model="inputMessage"
           placeholder="输入消息..."
           @keypress.enter.prevent="handleSend"
+          @input="handleInput"
           :maxlength="500"
           :disabled="!canInput"
         />
@@ -131,6 +141,7 @@ const messages = computed(() => chatStore.messages.value);
 const isSending = computed(() => chatStore.isSending.value);
 const currentSession = computed(() => chatStore.currentSession.value);
 const currentAgentStatus = computed(() => chatStore.currentAgentStatus.value);
+const isAgentTyping = computed(() => chatStore.isAgentTyping.value);
 
 const messageListRef = ref(null);
 const inputWrapperRef = ref(null);
@@ -324,12 +335,17 @@ function scrollToBottom() {
   });
 }
 
+function handleInput() {
+  chatStore.handleUserTyping();
+}
+
 async function handleSend() {
   const trimmedMessage = inputMessage.value.trim();
   if (!trimmedMessage) return;
   if (trimmedMessage.length > 500) return;
   if (!canSend.value) return;
 
+  chatStore.stopUserTyping();
   inputMessage.value = '';
   scrollToBottom();
   
@@ -693,5 +709,47 @@ onMounted(() => {
 .send-button:disabled {
   background-color: #c0c0c0;
   cursor: not-allowed;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  color: #999;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 2px;
+}
+
+.typing-dots .dot {
+  width: 4px;
+  height: 4px;
+  background-color: #999;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
 }
 </style>

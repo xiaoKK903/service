@@ -1,7 +1,7 @@
 const { sessionStatuses } = require('../utils/constants');
 
 class Session {
-  constructor({ id, userId, userName, userAvatar, agentId, status, lastMessage, lastMessageTime, unreadCount, createdAt, closedAt }) {
+  constructor({ id, userId, userName, userAvatar, agentId, status, lastMessage, lastMessageTime, unreadCount, createdAt, closedAt, notes, notesUpdatedAt }) {
     this.id = id || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.userId = userId;
     this.userName = userName || `用户${userId}`;
@@ -13,6 +13,8 @@ class Session {
     this.unreadCount = unreadCount || 0;
     this.createdAt = createdAt || Date.now();
     this.closedAt = closedAt || null;
+    this.notes = notes || '';
+    this.notesUpdatedAt = notesUpdatedAt || null;
   }
 
   toJSON() {
@@ -27,7 +29,9 @@ class Session {
       lastMessageTime: this.lastMessageTime,
       unreadCount: this.unreadCount,
       createdAt: this.createdAt,
-      closedAt: this.closedAt
+      closedAt: this.closedAt,
+      notes: this.notes,
+      notesUpdatedAt: this.notesUpdatedAt
     };
   }
 
