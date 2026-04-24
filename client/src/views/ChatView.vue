@@ -22,18 +22,39 @@
       <div 
         v-for="message in messages" 
         :key="message.id"
-        :class="['message-item', isFromMe(message.sender) ? 'from-me' : 'from-server']"
+        :class="['message-item', isFromMe(message.sender) ? 'from-me' : 'from-server', { recalled: message.recalled }]"
+        @mouseenter="onMessageMouseEnter(message.id)"
+        @mouseleave="onMessageMouseLeave(message.id)"
       >
-        <div class="message-sender">
-          {{ isFromMe(message.sender) ? '我' : getSenderName(message.sender) }}
-          <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+        <div v-if="message.recalled" class="recalled-message">
+          <span class="recalled-icon">📤</span>
+          <span class="recalled-text">你撤回了一条消息</span>
+          <span class="recalled-time">{{ formatTime(message.timestamp) }}</span>
         </div>
-        <div class="message-bubble">
-          {{ message.content }}
-        </div>
-        <div v-if="isFromMe(message.sender)" class="message-status">
-          {{ getMessageStatusText(message.status) }}
-        </div>
+        
+        <template v-else>
+          <div class="message-sender">
+            {{ isFromMe(message.sender) ? '我' : getSenderName(message.sender) }}
+            <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+          </div>
+          <div class="message-content-wrapper">
+            <div class="message-bubble">
+              {{ message.content }}
+            </div>
+            <div 
+              v-if="shouldShowRecallBtn(message)" 
+              class="recall-btn"
+              @click.stop="handleRecall(message)"
+              @mouseenter="onBtnMouseEnter(message.id)"
+              @mouseleave="onBtnMouseLeave(message.id)"
+            >
+              撤回
+            </div>
+          </div>
+          <div v-if="isFromMe(message.sender)" class="message-status">
+            {{ getMessageStatusText(message.status) }}
+          </div>
+        </template>
       </div>
       
       <div v-if="isSending" class="message-item from-me">
@@ -80,6 +101,8 @@ const AGENT_STATUS_IDLE = 'idle';
 const AGENT_STATUS_BUSY = 'busy';
 const AGENT_STATUS_OFFLINE = 'offline';
 
+const RECALL_WINDOW_MS = 2 * 60 * 1000;
+
 const messages = computed(() => chatStore.messages.value);
 const isSending = computed(() => chatStore.isSending.value);
 const currentSession = computed(() => chatStore.currentSession.value);
@@ -87,6 +110,9 @@ const currentAgentStatus = computed(() => chatStore.currentAgentStatus.value);
 
 const messageListRef = ref(null);
 const inputMessage = ref('');
+
+const hoveredMessageId = ref(null);
+const btnHoveredMessageId = ref(null);
 
 const isConnected = computed(() => {
   return chatStore.canSendMessage.value;
@@ -159,6 +185,54 @@ function getAgentStatusText(status) {
       return '离线';
     default:
       return '未知';
+  }
+}
+
+function canRecallMessage(message) {
+  if (message.recalled) return false;
+  if (!isFromMe(message.sender)) return false;
+  if (message.status === messageStatuses.READ) return false;
+  
+  const now = Date.now();
+  const messageTime = message.timestamp || 0;
+  const elapsed = now - messageTime;
+  
+  return elapsed <= RECALL_WINDOW_MS;
+}
+
+function shouldShowRecallBtn(message) {
+  console.log('[ChatView] shouldShowRecallBtn, message:', message.id, 'canRecall:', canRecallMessage(message), 'hoveredId:', hoveredMessageId.value, 'btnHoveredId:', btnHoveredMessageId.value);
+  if (!canRecallMessage(message)) return false;
+  return hoveredMessageId.value === message.id || btnHoveredMessageId.value === message.id;
+}
+
+function onMessageMouseEnter(messageId) {
+  console.log('[ChatView] onMessageMouseEnter:', messageId);
+  hoveredMessageId.value = messageId;
+}
+
+function onMessageMouseLeave(messageId) {
+  console.log('[ChatView] onMessageMouseLeave:', messageId, 'btnHovered:', btnHoveredMessageId.value);
+  if (btnHoveredMessageId.value === messageId) return;
+  hoveredMessageId.value = null;
+}
+
+function onBtnMouseEnter(messageId) {
+  console.log('[ChatView] onBtnMouseEnter:', messageId);
+  btnHoveredMessageId.value = messageId;
+}
+
+function onBtnMouseLeave(messageId) {
+  console.log('[ChatView] onBtnMouseLeave:', messageId);
+  btnHoveredMessageId.value = null;
+  hoveredMessageId.value = null;
+}
+
+function handleRecall(message) {
+  console.log('[ChatView] handleRecall 被点击了! message:', message);
+  console.log('[ChatView] currentSession:', currentSession.value?.id);
+  if (message && currentSession.value?.id) {
+    chatStore.recallMessage(message.id, currentSession.value.id);
   }
 }
 
@@ -303,6 +377,7 @@ onMounted(() => {
 .message-item {
   margin-bottom: 16px;
   max-width: 80%;
+  position: relative;
 }
 
 .message-item.from-me {
@@ -328,6 +403,16 @@ onMounted(() => {
 .message-time {
   margin-left: 8px;
   font-size: 10px;
+}
+
+.message-content-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.message-item.from-me .message-content-wrapper {
+  float: right;
 }
 
 .message-bubble {
@@ -356,6 +441,65 @@ onMounted(() => {
   color: #999;
   margin-top: 4px;
   text-align: right;
+}
+
+.recall-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  background-color: #ff4d4f;
+  color: white;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 10;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
+}
+
+.message-item.from-me .recall-btn {
+  right: 100%;
+  margin-right: 8px;
+}
+
+.message-item.from-server .recall-btn {
+  left: 100%;
+  margin-left: 8px;
+}
+
+.recall-btn:hover {
+  background-color: #ff7875;
+}
+
+.recalled-message {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+}
+
+.message-item.from-me .recalled-message {
+  justify-content: flex-end;
+}
+
+.recalled-icon {
+  margin-right: 6px;
+  font-size: 14px;
+}
+
+.recalled-text {
+  margin-right: 8px;
+}
+
+.recalled-time {
+  font-size: 10px;
+  color: #bbb;
 }
 
 .connecting-message {

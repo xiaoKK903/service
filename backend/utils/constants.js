@@ -65,6 +65,10 @@ module.exports = {
     BATCH_MESSAGE_READ: 'batch_message_read',
     BATCH_MESSAGE_READ_ACK: 'batch_message_read_ack',
     
+    MESSAGE_RECALL: 'message_recall',
+    MESSAGE_RECALLED: 'message_recalled',
+    MESSAGE_RECALL_FAILED: 'message_recall_failed',
+    
     ERROR: 'error'
   },
 

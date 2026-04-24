@@ -41,6 +41,7 @@
             :key="message.id"
             :message="message"
             :show-status="message.sender === 'agent'"
+            @recall="handleMessageRecall"
           />
         </div>
       </div>
@@ -117,7 +118,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['send', 'close', 'accept', 'open-quick-reply-manager']);
+const emit = defineEmits(['send', 'close', 'accept', 'open-quick-reply-manager', 'recall']);
 
 const inputValue = ref('');
 const messagesContainerRef = ref(null);
@@ -191,6 +192,11 @@ function handleQuickReplySelect(item) {
       handleSend();
     }
   }
+}
+
+function handleMessageRecall(message) {
+  console.log('[ChatWindow] 收到撤回请求:', message.id);
+  emit('recall', message);
 }
 
 onMounted(() => {

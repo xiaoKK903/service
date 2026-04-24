@@ -6,6 +6,7 @@ const quickReplyService = require('./quickReplyService');
 const agentService = require('./agentService');
 const queueService = require('./queueService');
 const readReceiptService = require('./readReceiptService');
+const recallService = require('./recallService');
 
 class WebSocketService {
   constructor() {
@@ -99,6 +100,10 @@ class WebSocketService {
         
         case wsMessageTypes.BATCH_MESSAGE_READ:
           this.handleBatchMessageRead(ws, payload);
+          break;
+        
+        case wsMessageTypes.MESSAGE_RECALL:
+          this.handleMessageRecall(ws, payload);
           break;
         
         default:
@@ -832,6 +837,60 @@ class WebSocketService {
     }
 
     console.log(`批量已读: ${sessionId} by ${clientInfo.clientType}`);
+  }
+
+  handleMessageRecall(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    const { messageId, sessionId } = payload;
+    if (!messageId || !sessionId) {
+      this.sendError(ws, '缺少必要参数');
+      return;
+    }
+
+    const session = sessionService.getSession(sessionId);
+    if (!session) {
+      this.sendError(ws, '会话不存在');
+      return;
+    }
+
+    const result = recallService.recallMessage(messageId, sessionId, clientInfo.clientType);
+
+    if (!result.success) {
+      this.send(ws, {
+        type: wsMessageTypes.MESSAGE_RECALL_FAILED,
+        payload: {
+          messageId,
+          sessionId,
+          reason: result.reason
+        }
+      });
+      console.log(`[WebSocketService] 撤回失败: ${messageId}, 原因: ${result.reason}`);
+      return;
+    }
+
+    console.log(`[WebSocketService] 消息撤回成功: ${messageId}`);
+
+    this.send(ws, {
+      type: wsMessageTypes.MESSAGE_RECALLED,
+      payload: result.message
+    });
+
+    if (clientInfo.clientType === clientTypes.USER && session.agentId) {
+      this.sendToAgent(session.agentId, {
+        type: wsMessageTypes.MESSAGE_RECALLED,
+        payload: result.message
+      });
+    } else if (clientInfo.clientType === clientTypes.AGENT && session.userId) {
+      this.sendToUser(session.userId, {
+        type: wsMessageTypes.MESSAGE_RECALLED,
+        payload: result.message
+      });
+    }
   }
 }
 

@@ -37,6 +37,10 @@ const WS_MESSAGE_TYPES = {
   BATCH_MESSAGE_READ: 'batch_message_read',
   BATCH_MESSAGE_READ_ACK: 'batch_message_read_ack',
   
+  MESSAGE_RECALL: 'message_recall',
+  MESSAGE_RECALLED: 'message_recalled',
+  MESSAGE_RECALL_FAILED: 'message_recall_failed',
+  
   ERROR: 'error'
 };
 
@@ -387,6 +391,17 @@ export function useChatService() {
     });
   }
 
+  function recallMessage(messageId, sessionId) {
+    console.log('chatService recallMessage:', messageId, sessionId);
+    return send({
+      type: WS_MESSAGE_TYPES.MESSAGE_RECALL,
+      payload: {
+        messageId,
+        sessionId
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -413,7 +428,8 @@ export function useChatService() {
     updateQuickReply,
     deleteQuickReply,
     updateAgentStatus,
-    markAllMessagesAsRead
+    markAllMessagesAsRead,
+    recallMessage
   };
 }
 
