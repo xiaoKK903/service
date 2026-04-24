@@ -51,6 +51,11 @@ const WS_MESSAGE_TYPES = {
   SENSITIVE_WORD_DELETE: 'sensitive_word_delete',
   SENSITIVE_WORD_DELETED: 'sensitive_word_deleted',
   
+  TYPING_START: 'typing_start',
+  TYPING_STOP: 'typing_stop',
+  
+  SESSION_NOTES_UPDATE: 'session_notes_update',
+  
   ERROR: 'error'
 };
 
@@ -454,6 +459,34 @@ export function useChatService() {
     });
   }
 
+  function sendTypingStart(sessionId) {
+    return send({
+      type: WS_MESSAGE_TYPES.TYPING_START,
+      payload: {
+        sessionId
+      }
+    });
+  }
+
+  function sendTypingStop(sessionId) {
+    return send({
+      type: WS_MESSAGE_TYPES.TYPING_STOP,
+      payload: {
+        sessionId
+      }
+    });
+  }
+
+  function updateSessionNotes(sessionId, notes) {
+    return send({
+      type: WS_MESSAGE_TYPES.SESSION_NOTES_UPDATE,
+      payload: {
+        sessionId,
+        notes
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -485,7 +518,10 @@ export function useChatService() {
     getSensitiveWordList,
     createSensitiveWord,
     updateSensitiveWord,
-    deleteSensitiveWord
+    deleteSensitiveWord,
+    sendTypingStart,
+    sendTypingStop,
+    updateSessionNotes
   };
 }
 

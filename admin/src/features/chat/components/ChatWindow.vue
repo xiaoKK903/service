@@ -9,6 +9,15 @@
       </div>
       <div class="chat-actions">
         <button 
+          v-if="session"
+          class="action-btn"
+          :class="{ active: showNotesPanel }"
+          @click="toggleNotesPanel"
+          title="会话备注"
+        >
+          备注
+        </button>
+        <button 
           v-if="session?.status === sessionStatuses.ACTIVE"
           class="action-btn"
           @click="handleCloseSession"
@@ -44,6 +53,15 @@
             @recall="handleMessageRecall"
           />
         </div>
+
+        <div v-if="isUserTyping" class="typing-indicator">
+          <span>用户正在输入</span>
+          <span class="typing-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </span>
+        </div>
       </div>
 
       <QuickReplyPanel 
@@ -52,6 +70,25 @@
         @select="handleQuickReplySelect"
         @open-manager="$emit('open-quick-reply-manager')"
       />
+
+      <div v-if="showNotesPanel" class="notes-panel">
+        <div class="notes-header">
+          <span class="notes-title">会话备注</span>
+          <button class="notes-close-btn" @click="toggleNotesPanel">×</button>
+        </div>
+        <div class="notes-content">
+          <textarea 
+            v-model="notesContent"
+            placeholder="输入备注内容，实时保存..."
+            @input="handleNotesInput"
+          ></textarea>
+          <div class="notes-info">
+            <span v-if="notesUpdatedAt">
+              最后更新: {{ formatDate(notesUpdatedAt) }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="session && session.status !== sessionStatuses.CLOSED" class="chat-input-container">
@@ -69,6 +106,7 @@
             :maxlength="500"
             :disabled="isSending"
             @keypress="handleKeyPress"
+            @input="handleInput"
           />
           <div class="char-count">{{ inputValue.length }}/500</div>
         </div>
@@ -131,16 +169,33 @@ const props = defineProps({
   quickReplies: {
     type: Array,
     default: () => []
+  },
+  isUserTyping: {
+    type: Boolean,
+    default: false
   }
 });
 
-const emit = defineEmits(['send', 'close', 'accept', 'open-quick-reply-manager', 'recall']);
+const emit = defineEmits([
+  'send', 
+  'close', 
+  'accept', 
+  'open-quick-reply-manager', 
+  'recall',
+  'typing-start',
+  'typing-stop',
+  'notes-update'
+]);
 
 const inputValue = ref('');
 const messagesContainerRef = ref(null);
 const inputRef = ref(null);
 const showQuickReplyPanel = ref(false);
 const showEmojiPanel = ref(false);
+const showNotesPanel = ref(false);
+const notesContent = ref('');
+const notesUpdatedAt = ref(null);
+let notesDebounceTimer = null;
 
 const statusLabel = computed(() => {
   if (!props.session) return '';
@@ -168,9 +223,17 @@ watch(() => props.messages, () => {
   scrollToBottom();
 }, { deep: true });
 
-watch(() => props.session, () => {
+watch(() => props.session, (newSession, oldSession) => {
   scrollToBottom();
   inputValue.value = '';
+  
+  if (newSession) {
+    notesContent.value = newSession.notes || '';
+    notesUpdatedAt.value = newSession.notesUpdatedAt || null;
+  } else {
+    notesContent.value = '';
+    notesUpdatedAt.value = null;
+  }
 });
 
 function handleKeyPress(event) {
@@ -180,8 +243,13 @@ function handleKeyPress(event) {
   }
 }
 
+function handleInput() {
+  emit('typing-start');
+}
+
 function handleSend() {
   if (!props.canSend) return;
+  emit('typing-stop');
   emit('send', inputValue.value);
   inputValue.value = '';
 }
@@ -235,6 +303,37 @@ function handleEmojiSelect(emoji) {
 
 function handleMessageRecall(message) {
   emit('recall', message);
+}
+
+function toggleNotesPanel() {
+  showNotesPanel.value = !showNotesPanel.value;
+  if (showNotesPanel.value) {
+    showQuickReplyPanel.value = false;
+    showEmojiPanel.value = false;
+  }
+}
+
+function handleNotesInput() {
+  if (notesDebounceTimer) {
+    clearTimeout(notesDebounceTimer);
+  }
+  
+  notesDebounceTimer = setTimeout(() => {
+    emit('notes-update', notesContent.value);
+    notesUpdatedAt.value = Date.now();
+  }, 500);
+}
+
+function formatDate(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 onMounted(() => {
@@ -470,5 +569,136 @@ onMounted(() => {
   background-color: #fafafa;
   color: #999;
   font-size: 14px;
+}
+
+.action-btn.active {
+  background-color: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.action-btn.active:hover {
+  background-color: #5a67d8;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  color: #999;
+  font-size: 12px;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 2px;
+}
+
+.typing-dots .dot {
+  width: 4px;
+  height: 4px;
+  background-color: #999;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+}
+
+.notes-panel {
+  width: 300px;
+  border-left: 1px solid #e0e0e0;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+.notes-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.notes-close-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.notes-close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.notes-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.notes-content textarea {
+  flex: 1;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+  background-color: #fafafa;
+  transition: border-color 0.2s;
+}
+
+.notes-content textarea:focus {
+  border-color: #667eea;
+  background-color: white;
+}
+
+.notes-content textarea::placeholder {
+  color: #bbb;
+}
+
+.notes-info {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #999;
 }
 </style>

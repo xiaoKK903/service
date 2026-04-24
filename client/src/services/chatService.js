@@ -29,6 +29,9 @@ const WS_MESSAGE_TYPES = {
   MESSAGE_RECALLED: 'message_recalled',
   MESSAGE_RECALL_FAILED: 'message_recall_failed',
   
+  TYPING_START: 'typing_start',
+  TYPING_STOP: 'typing_stop',
+  
   ERROR: 'error'
 };
 
@@ -252,6 +255,24 @@ export function useChatService() {
     });
   }
 
+  function sendTypingStart(sessionId) {
+    return send({
+      type: WS_MESSAGE_TYPES.TYPING_START,
+      payload: {
+        sessionId
+      }
+    });
+  }
+
+  function sendTypingStop(sessionId) {
+    return send({
+      type: WS_MESSAGE_TYPES.TYPING_STOP,
+      payload: {
+        sessionId
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -268,7 +289,9 @@ export function useChatService() {
     sendMessage,
     closeSession,
     markMessageAsRead,
-    recallMessage
+    recallMessage,
+    sendTypingStart,
+    sendTypingStop
   };
 }
 

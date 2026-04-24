@@ -48,11 +48,15 @@
         :is-sending="isSending"
         :can-send="canSendMessage"
         :quick-replies="quickReplies"
+        :is-user-typing="isUserTyping"
         @send="handleSendMessage"
         @close="handleCloseSession"
         @accept="handleAcceptSession"
         @open-quick-reply-manager="showQuickReplyManager = true"
         @recall="handleMessageRecall"
+        @typing-start="handleTypingStart"
+        @typing-stop="handleTypingStop"
+        @notes-update="handleNotesUpdate"
       />
     </main>
 
@@ -103,6 +107,11 @@ const sensitiveWords = computed(() => store.sensitiveWords.value);
 const waitingCount = computed(() => store.waitingSessions.value.length);
 const activeCount = computed(() => store.activeSessions.value.length);
 const closedCount = computed(() => store.closedSessions.value.length);
+
+const isUserTyping = computed(() => {
+  if (!selectedSessionId.value) return false;
+  return store.isUserTyping(selectedSessionId.value);
+});
 
 const AGENT_STATUS_IDLE = 'idle';
 const AGENT_STATUS_BUSY = 'busy';
@@ -197,6 +206,20 @@ function handleDeleteSensitiveWord(id) {
   console.log('========== AdminView handleDeleteSensitiveWord ==========');
   console.log('收到 delete 事件，ID:', id);
   store.deleteSensitiveWord(id);
+}
+
+function handleTypingStart() {
+  store.handleAgentTyping();
+}
+
+function handleTypingStop() {
+  store.stopAgentTyping();
+}
+
+function handleNotesUpdate(notes) {
+  if (selectedSessionId.value) {
+    store.updateSessionNotes(selectedSessionId.value, notes);
+  }
 }
 
 onMounted(() => {
