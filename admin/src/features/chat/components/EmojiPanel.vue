@@ -47,11 +47,12 @@ function handleEmojiClick(emoji) {
 
 <style scoped>
 .emoji-panel {
-  width: 320px;
-  border-right: 1px solid #e0e0e0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   background-color: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  max-height: 220px;
 }
 
 .emoji-categories {
@@ -88,9 +89,9 @@ function handleEmojiClick(emoji) {
 .emoji-grid {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 8px 12px;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   gap: 4px;
   align-content: start;
 }

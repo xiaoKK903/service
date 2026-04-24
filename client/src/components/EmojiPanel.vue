@@ -47,37 +47,30 @@ function handleEmojiClick(emoji) {
 
 <style scoped>
 .emoji-panel {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  width: 300px;
-  background-color: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  margin-bottom: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  background-color: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+  max-height: 220px;
 }
 
 .emoji-categories {
   display: flex;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
   padding: 8px;
   border-bottom: 1px solid #e0e0e0;
   background-color: white;
-  border-radius: 8px 8px 0 0;
 }
 
 .category-tab {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 20px;
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s;
@@ -96,17 +89,16 @@ function handleEmojiClick(emoji) {
 .emoji-grid {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 8px 12px;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(12, 1fr);
   gap: 4px;
   align-content: start;
-  max-height: 200px;
 }
 
 .emoji-item {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,7 +117,7 @@ function handleEmojiClick(emoji) {
 }
 
 .emoji-code {
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
 }
 </style>
