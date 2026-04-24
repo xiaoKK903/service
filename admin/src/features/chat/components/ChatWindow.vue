@@ -74,16 +74,26 @@
       <div v-if="showNotesPanel" class="notes-panel">
         <div class="notes-header">
           <span class="notes-title">会话备注</span>
-          <button class="notes-close-btn" @click="toggleNotesPanel">×</button>
+          <div class="notes-header-actions">
+            <button 
+              class="save-notes-btn"
+              :disabled="!hasUnsavedChanges || isSavingNotes"
+              @click="handleSaveNotes"
+            >
+              {{ isSavingNotes ? '保存中...' : '保存' }}
+            </button>
+            <button class="notes-close-btn" @click="toggleNotesPanel">×</button>
+          </div>
         </div>
         <div class="notes-content">
           <textarea 
             v-model="notesContent"
-            placeholder="输入备注内容，实时保存..."
+            placeholder="输入备注内容，点击保存按钮保存..."
             @input="handleNotesInput"
           ></textarea>
           <div class="notes-info">
-            <span v-if="notesUpdatedAt">
+            <span v-if="hasUnsavedChanges" class="unsaved-indicator">有未保存的更改</span>
+            <span v-else-if="notesUpdatedAt">
               最后更新: {{ formatDate(notesUpdatedAt) }}
             </span>
           </div>
@@ -195,7 +205,12 @@ const showEmojiPanel = ref(false);
 const showNotesPanel = ref(false);
 const notesContent = ref('');
 const notesUpdatedAt = ref(null);
-let notesDebounceTimer = null;
+const originalNotesContent = ref('');
+const isSavingNotes = ref(false);
+
+const hasUnsavedChanges = computed(() => {
+  return notesContent.value !== originalNotesContent.value;
+});
 
 const statusLabel = computed(() => {
   if (!props.session) return '';
@@ -230,9 +245,11 @@ watch(() => props.session, (newSession, oldSession) => {
   if (newSession) {
     notesContent.value = newSession.notes || '';
     notesUpdatedAt.value = newSession.notesUpdatedAt || null;
+    originalNotesContent.value = newSession.notes || '';
   } else {
     notesContent.value = '';
     notesUpdatedAt.value = null;
+    originalNotesContent.value = '';
   }
 });
 
@@ -314,14 +331,23 @@ function toggleNotesPanel() {
 }
 
 function handleNotesInput() {
-  if (notesDebounceTimer) {
-    clearTimeout(notesDebounceTimer);
-  }
+}
+
+async function handleSaveNotes() {
+  if (!hasUnsavedChanges.value || isSavingNotes.value) return;
   
-  notesDebounceTimer = setTimeout(() => {
+  isSavingNotes.value = true;
+  
+  try {
     emit('notes-update', notesContent.value);
+    originalNotesContent.value = notesContent.value;
     notesUpdatedAt.value = Date.now();
-  }, 500);
+    console.log('[ChatWindow] 备注已保存');
+  } catch (error) {
+    console.error('[ChatWindow] 保存备注失败:', error);
+  } finally {
+    isSavingNotes.value = false;
+  }
 }
 
 function formatDate(timestamp) {
@@ -645,6 +671,34 @@ onMounted(() => {
   color: #333;
 }
 
+.notes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.save-notes-btn {
+  padding: 6px 12px;
+  background-color: #667eea;
+  color: white;
+  border: 1px solid #667eea;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-notes-btn:hover:not(:disabled) {
+  background-color: #5a67d8;
+  border-color: #5a67d8;
+}
+
+.save-notes-btn:disabled {
+  background-color: #c0c0c0;
+  border-color: #c0c0c0;
+  cursor: not-allowed;
+}
+
 .notes-close-btn {
   width: 24px;
   height: 24px;
@@ -700,5 +754,10 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 11px;
   color: #999;
+}
+
+.unsaved-indicator {
+  color: #fa8c16;
+  font-weight: 500;
 }
 </style>
