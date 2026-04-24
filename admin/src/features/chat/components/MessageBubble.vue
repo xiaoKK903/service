@@ -21,18 +21,30 @@
           <span class="message-time">{{ formattedTime }}</span>
         </div>
         
-        <div class="message-content-row">
-          <div 
-            v-if="showRecallBtn && isFromMe" 
-            class="recall-btn"
-            @click.stop="handleRecallClick"
-            @mouseenter.stop="onBtnMouseEnter"
-            @mouseleave.stop="onBtnMouseLeave"
-          >
-            撤回
+        <div class="message-content-container">
+          <div class="message-content-row">
+            <div 
+              v-if="showRecallBtn && isFromMe" 
+              class="recall-btn"
+              @click.stop="handleRecallClick"
+              @mouseenter.stop="onBtnMouseEnter"
+              @mouseleave.stop="onBtnMouseLeave"
+            >
+              撤回
+            </div>
+            
+            <div class="message-content">{{ message.content }}</div>
           </div>
           
-          <div class="message-content">{{ message.content }}</div>
+          <div class="message-actions" v-if="showActions">
+            <button 
+              class="copy-btn"
+              @click.stop="handleCopyClick"
+              title="复制消息"
+            >
+              复制
+            </button>
+          </div>
         </div>
         
         <div v-if="showStatus" class="message-status">{{ statusText }}</div>
@@ -61,6 +73,7 @@ const emit = defineEmits(['recall']);
 const showRecallBtn = ref(false);
 const hoverTimer = ref(null);
 const btnHovered = ref(false);
+const showActions = ref(false);
 
 const RECALL_WINDOW_MS = 2 * 60 * 1000;
 
@@ -131,22 +144,14 @@ function onMouseEnter() {
   console.log('isFromMe:', isFromMe.value);
   console.log('canRecall:', canRecall.value);
   
-  if (!canRecall.value) {
-    console.log('=== 不能撤回，原因检查 ===');
-    console.log('recalled:', props.message.recalled);
-    console.log('status is read:', props.message.status === 'read');
-    const now = Date.now();
-    const messageTime = new Date(props.message.timestamp).getTime() || 0;
-    const elapsed = now - messageTime;
-    console.log('elapsed ms:', elapsed);
-    console.log('RECALL_WINDOW_MS:', RECALL_WINDOW_MS);
-    console.log('elapsed <= RECALL_WINDOW_MS:', elapsed <= RECALL_WINDOW_MS);
-    return;
-  }
-  
   clearTimeout(hoverTimer.value);
-  showRecallBtn.value = true;
-  console.log('=== 显示撤回按钮 ===');
+  showActions.value = true;
+  
+  if (canRecall.value) {
+    showRecallBtn.value = true;
+    console.log('=== 显示撤回按钮 ===');
+  }
+  console.log('=== 显示操作按钮 ===');
 }
 
 function onMouseLeave() {
@@ -160,7 +165,8 @@ function onMouseLeave() {
   
   hoverTimer.value = setTimeout(() => {
     showRecallBtn.value = false;
-    console.log('=== 隐藏撤回按钮 ===');
+    showActions.value = false;
+    console.log('=== 隐藏所有按钮 ===');
   }, 300);
 }
 
@@ -176,8 +182,25 @@ function onBtnMouseLeave() {
   btnHovered.value = false;
   hoverTimer.value = setTimeout(() => {
     showRecallBtn.value = false;
+    showActions.value = false;
     console.log('=== 鼠标离开按钮，隐藏 ===');
   }, 300);
+}
+
+function handleCopyClick() {
+  console.log('=== [MessageBubble] 复制按钮被点击 ===');
+  console.log('复制消息内容:', props.message.content);
+  
+  if (props.message.content) {
+    navigator.clipboard.writeText(props.message.content)
+      .then(() => {
+        console.log('=== 消息复制成功 ===');
+        // 可以添加一个复制成功的提示
+      })
+      .catch(err => {
+        console.error('复制失败:', err);
+      });
+  }
 }
 
 function handleRecallClick() {
@@ -251,10 +274,17 @@ onMounted(() => {
   font-size: 10px;
 }
 
+.message-content-container {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
 .message-content-row {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
+  position: relative;
 }
 
 .message-bubble.from-agent .message-content-row {
@@ -268,6 +298,8 @@ onMounted(() => {
   line-height: 1.5;
   word-wrap: break-word;
   max-width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .message-bubble.from-agent .message-content {
@@ -317,6 +349,7 @@ onMounted(() => {
   user-select: none;
   border: 1px solid #ff4d4f;
   font-weight: 500;
+  position: relative;
 }
 
 .message-bubble.from-agent .recall-btn {
@@ -332,6 +365,37 @@ onMounted(() => {
 .recall-btn:active {
   background-color: #d9363e;
   transform: scale(0.95);
+}
+
+.message-actions {
+  position: absolute;
+  bottom: -28px;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  z-index: 50;
+}
+
+.message-bubble.from-agent .message-actions {
+  right: auto;
+  left: 0;
+}
+
+.copy-btn {
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  opacity: 0.8;
+}
+
+.copy-btn:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+  opacity: 1;
 }
 
 .recalled-message {
