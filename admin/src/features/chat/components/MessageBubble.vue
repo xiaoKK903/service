@@ -72,15 +72,42 @@ const isFromMe = computed(() => {
 });
 
 const canRecall = computed(() => {
-  if (props.message.recalled) return false;
-  if (!isFromMe.value) return false;
-  if (props.message.status === 'read') return false;
+  console.log('[MessageBubble] canRecall check:', {
+    recalled: props.message.recalled,
+    isFromMe: isFromMe.value,
+    status: props.message.status,
+    timestamp: props.message.timestamp,
+    sender: props.message.sender,
+    messageId: props.message.id
+  });
+  
+  if (props.message.recalled) {
+    console.log('[MessageBubble] 消息已撤回，不能撤回');
+    return false;
+  }
+  if (!isFromMe.value) {
+    console.log('[MessageBubble] 不是自己的消息，不能撤回');
+    return false;
+  }
+  if (props.message.status === 'read') {
+    console.log('[MessageBubble] 消息已读，不能撤回');
+    return false;
+  }
   
   const now = Date.now();
-  const messageTime = props.message.timestamp || 0;
+  const messageTime = new Date(props.message.timestamp).getTime() || 0;
   const elapsed = now - messageTime;
   
-  return elapsed <= RECALL_WINDOW_MS;
+  console.log('[MessageBubble] 时间检查:', {
+    now,
+    messageTime,
+    elapsed,
+    RECALL_WINDOW_MS
+  });
+  
+  const result = elapsed <= RECALL_WINDOW_MS;
+  console.log('[MessageBubble] canRecall 结果:', result);
+  return result;
 });
 
 const senderName = computed(() => {
@@ -118,30 +145,40 @@ const statusText = computed(() => {
 });
 
 function onMouseEnter() {
+  console.log('[MessageBubble] onMouseEnter, canRecall:', canRecall.value, 'message:', props.message.id, 'status:', props.message.status);
   if (!canRecall.value) return;
   clearTimeout(hoverTimer.value);
   showRecallBtn.value = true;
 }
 
 function onMouseLeave() {
+  console.log('[MessageBubble] onMouseLeave, btnHovered:', btnHovered.value);
   if (btnHovered.value) return;
   hoverTimer.value = setTimeout(() => {
     showRecallBtn.value = false;
-  }, 200);
+  }, 300);
 }
 
 function onBtnMouseEnter() {
+  console.log('[MessageBubble] onBtnMouseEnter');
+  clearTimeout(hoverTimer.value);
   btnHovered.value = true;
 }
 
 function onBtnMouseLeave() {
+  console.log('[MessageBubble] onBtnMouseLeave');
   btnHovered.value = false;
-  showRecallBtn.value = false;
+  hoverTimer.value = setTimeout(() => {
+    showRecallBtn.value = false;
+  }, 300);
 }
 
-function handleRecall(event) {
-  event.stopPropagation();
-  console.log('[MessageBubble] 撤回消息:', props.message.id);
+function handleRecall($event) {
+  console.log('[MessageBubble] handleRecall 被点击了! message:', props.message.id);
+  if ($event && $event.stopPropagation) {
+    $event.stopPropagation();
+  }
+  console.log('[MessageBubble] 发出 recall 事件:', props.message);
   emit('recall', props.message);
 }
 </script>

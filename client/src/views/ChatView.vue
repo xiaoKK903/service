@@ -201,30 +201,36 @@ function canRecallMessage(message) {
 }
 
 function shouldShowRecallBtn(message) {
+  console.log('[ChatView] shouldShowRecallBtn, message:', message.id, 'canRecall:', canRecallMessage(message), 'hoveredId:', hoveredMessageId.value, 'btnHoveredId:', btnHoveredMessageId.value);
   if (!canRecallMessage(message)) return false;
-  return hoveredMessageId.value === message.id;
+  return hoveredMessageId.value === message.id || btnHoveredMessageId.value === message.id;
 }
 
 function onMessageMouseEnter(messageId) {
+  console.log('[ChatView] onMessageMouseEnter:', messageId);
   hoveredMessageId.value = messageId;
 }
 
 function onMessageMouseLeave(messageId) {
+  console.log('[ChatView] onMessageMouseLeave:', messageId, 'btnHovered:', btnHoveredMessageId.value);
   if (btnHoveredMessageId.value === messageId) return;
   hoveredMessageId.value = null;
 }
 
 function onBtnMouseEnter(messageId) {
+  console.log('[ChatView] onBtnMouseEnter:', messageId);
   btnHoveredMessageId.value = messageId;
 }
 
 function onBtnMouseLeave(messageId) {
+  console.log('[ChatView] onBtnMouseLeave:', messageId);
   btnHoveredMessageId.value = null;
   hoveredMessageId.value = null;
 }
 
 function handleRecall(message) {
-  console.log('[ChatView] 撤回消息:', message.id, 'sessionId:', currentSession.value?.id);
+  console.log('[ChatView] handleRecall 被点击了! message:', message);
+  console.log('[ChatView] currentSession:', currentSession.value?.id);
   if (message && currentSession.value?.id) {
     chatStore.recallMessage(message.id, currentSession.value.id);
   }
