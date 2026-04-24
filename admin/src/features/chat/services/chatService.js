@@ -41,6 +41,15 @@ const WS_MESSAGE_TYPES = {
   MESSAGE_RECALLED: 'message_recalled',
   MESSAGE_RECALL_FAILED: 'message_recall_failed',
   
+  SENSITIVE_WORD_LIST: 'sensitive_word_list',
+  SENSITIVE_WORD_LIST_RESPONSE: 'sensitive_word_list_response',
+  SENSITIVE_WORD_CREATE: 'sensitive_word_create',
+  SENSITIVE_WORD_CREATED: 'sensitive_word_created',
+  SENSITIVE_WORD_UPDATE: 'sensitive_word_update',
+  SENSITIVE_WORD_UPDATED: 'sensitive_word_updated',
+  SENSITIVE_WORD_DELETE: 'sensitive_word_delete',
+  SENSITIVE_WORD_DELETED: 'sensitive_word_deleted',
+  
   ERROR: 'error'
 };
 
@@ -402,6 +411,49 @@ export function useChatService() {
     });
   }
 
+  function getSensitiveWordList() {
+    console.log('chatService getSensitiveWordList');
+    return send({
+      type: WS_MESSAGE_TYPES.SENSITIVE_WORD_LIST,
+      payload: {}
+    });
+  }
+
+  function createSensitiveWord(word, category, sortOrder) {
+    console.log('chatService createSensitiveWord:', word, category);
+    return send({
+      type: WS_MESSAGE_TYPES.SENSITIVE_WORD_CREATE,
+      payload: {
+        word,
+        category,
+        sortOrder
+      }
+    });
+  }
+
+  function updateSensitiveWord(id, { word, category, sortOrder }) {
+    console.log('chatService updateSensitiveWord:', id);
+    return send({
+      type: WS_MESSAGE_TYPES.SENSITIVE_WORD_UPDATE,
+      payload: {
+        id,
+        word,
+        category,
+        sortOrder
+      }
+    });
+  }
+
+  function deleteSensitiveWord(id) {
+    console.log('chatService deleteSensitiveWord:', id);
+    return send({
+      type: WS_MESSAGE_TYPES.SENSITIVE_WORD_DELETE,
+      payload: {
+        id
+      }
+    });
+  }
+
   return {
     isConnected,
     isAuthenticated,
@@ -429,7 +481,11 @@ export function useChatService() {
     deleteQuickReply,
     updateAgentStatus,
     markAllMessagesAsRead,
-    recallMessage
+    recallMessage,
+    getSensitiveWordList,
+    createSensitiveWord,
+    updateSensitiveWord,
+    deleteSensitiveWord
   };
 }
 
