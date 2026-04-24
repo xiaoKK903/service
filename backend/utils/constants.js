@@ -45,6 +45,7 @@ module.exports = {
     
     MESSAGE_SEND: 'message_send',
     MESSAGE_SENT: 'message_sent',
+    MESSAGE_SEND_FAILED: 'message_send_failed',
     MESSAGE_DELIVERED: 'message_delivered',
     MESSAGE_READ: 'message_read',
     MESSAGE_RECEIVE: 'message_receive',

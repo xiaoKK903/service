@@ -175,13 +175,17 @@ function handleClose() {
 }
 
 function handleAdd() {
+  console.log('[SensitiveWordManager] handleAdd 被点击');
+  alert('点击了【新增敏感词】按钮');
   isEditMode.value = false;
   editingItem.value = { ...defaultForm };
   resetForm();
   editForm.value.sortOrder = props.sensitiveWords.length;
+  console.log('[SensitiveWordManager] editingItem:', editingItem.value);
 }
 
 function handleEdit(item) {
+  console.log('[SensitiveWordManager] handleEdit 被点击:', item);
   isEditMode.value = true;
   editingItem.value = { ...item };
   editForm.value = {
@@ -193,7 +197,9 @@ function handleEdit(item) {
 }
 
 function handleDelete(item) {
+  console.log('[SensitiveWordManager] handleDelete 被点击:', item);
   if (confirm(`确定要删除敏感词"${item.word}"吗？`)) {
+    console.log('[SensitiveWordManager] 发出 delete 事件:', item.id);
     emit('delete', item.id);
   }
 }
@@ -204,9 +210,13 @@ function cancelEdit() {
 }
 
 function saveEdit() {
-  console.log('saveEdit called, canSave:', canSave.value, 'editForm:', editForm.value);
+  console.log('[SensitiveWordManager] saveEdit 被点击');
+  console.log('[SensitiveWordManager] canSave:', canSave.value);
+  console.log('[SensitiveWordManager] editForm:', editForm.value);
+  
   if (!canSave.value) {
-    console.log('saveEdit: canSave is false, returning');
+    console.log('[SensitiveWordManager] canSave 为 false，不保存');
+    alert('请输入敏感词内容！');
     return;
   }
   
@@ -216,7 +226,8 @@ function saveEdit() {
     sortOrder: editForm.value.sortOrder !== undefined ? editForm.value.sortOrder : 0
   };
   
-  console.log('saveEdit: emitting', isEditMode.value ? 'update' : 'create', 'with data:', data);
+  console.log('[SensitiveWordManager] 准备发出事件:', isEditMode.value ? 'update' : 'create', data);
+  alert(`准备保存敏感词: ${data.word}\n事件类型: ${isEditMode.value ? 'update' : 'create'}`);
   
   if (isEditMode.value) {
     emit('update', { id: editForm.value.id, ...data });

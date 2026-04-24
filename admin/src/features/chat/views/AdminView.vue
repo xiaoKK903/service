@@ -184,17 +184,21 @@ function handleMessageRecall(message) {
 }
 
 function handleCreateSensitiveWord(data) {
-  console.log('AdminView handleCreateSensitiveWord:', data);
+  console.log('========== AdminView handleCreateSensitiveWord ==========');
+  console.log('收到 create 事件，数据:', data);
+  alert('AdminView 收到 create 事件:\n' + JSON.stringify(data, null, 2));
   store.createSensitiveWord(data);
 }
 
 function handleUpdateSensitiveWord(data) {
-  console.log('AdminView handleUpdateSensitiveWord:', data);
+  console.log('========== AdminView handleUpdateSensitiveWord ==========');
+  console.log('收到 update 事件，数据:', data);
   store.updateSensitiveWord(data);
 }
 
 function handleDeleteSensitiveWord(id) {
-  console.log('AdminView handleDeleteSensitiveWord:', id);
+  console.log('========== AdminView handleDeleteSensitiveWord ==========');
+  console.log('收到 delete 事件，ID:', id);
   store.deleteSensitiveWord(id);
 }
 
