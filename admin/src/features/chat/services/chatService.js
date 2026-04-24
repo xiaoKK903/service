@@ -402,7 +402,6 @@ export function useChatService() {
   }
 
   function recallMessage(messageId, sessionId) {
-    console.log('chatService recallMessage:', messageId, sessionId);
     return send({
       type: WS_MESSAGE_TYPES.MESSAGE_RECALL,
       payload: {

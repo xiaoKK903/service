@@ -195,7 +195,6 @@ function handleQuickReplySelect(item) {
 }
 
 function handleMessageRecall(message) {
-  console.log('[ChatWindow] 收到撤回请求:', message.id);
   emit('recall', message);
 }
 

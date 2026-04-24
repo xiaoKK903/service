@@ -8,7 +8,6 @@ class RecallService {
   constructor() {
     this.messageService = messageService;
     this.sessionService = sessionService;
-    this.recalledMessages = new Set();
   }
 
   canRecallMessage(message, senderType) {
@@ -17,7 +16,7 @@ class RecallService {
       return { canRecall: false, reason: '消息不存在' };
     }
 
-    if (this.isRecalled(message.id)) {
+    if (message.recalled) {
       console.log('[RecallService] 消息已撤回:', message.id);
       return { canRecall: false, reason: '消息已撤回' };
     }
@@ -57,7 +56,8 @@ class RecallService {
       return { success: false, reason: checkResult.reason };
     }
 
-    this.recalledMessages.add(messageId);
+    message.recalled = true;
+    message.recalledAt = Date.now();
 
     console.log(`[RecallService] 消息已撤回: ${messageId}`);
 
@@ -65,11 +65,12 @@ class RecallService {
       success: true,
       message: {
         id: messageId,
+        messageId: messageId,
         sessionId: sessionId,
         content: message.content,
         sender: message.sender,
         recalled: true,
-        recalledAt: Date.now()
+        recalledAt: message.recalledAt
       }
     };
   }
@@ -80,7 +81,7 @@ class RecallService {
   }
 
   isRecalled(messageId) {
-    return this.recalledMessages.has(messageId);
+    return false;
   }
 
   getRecallWindowSeconds() {
