@@ -52,15 +52,14 @@
         @select="handleQuickReplySelect"
         @open-manager="$emit('open-quick-reply-manager')"
       />
-
-      <EmojiPanel 
-        v-if="showEmojiPanel && !showQuickReplyPanel"
-        @select="handleEmojiSelect"
-      />
     </div>
 
     <div v-if="session && session.status !== sessionStatuses.CLOSED" class="chat-input-container">
-      <div class="chat-input" :class="{ 'with-emoji-panel': showEmojiPanel }">
+      <EmojiPanel 
+        v-if="showEmojiPanel"
+        @select="handleEmojiSelect"
+      />
+      <div class="chat-input">
         <div class="input-wrapper">
           <input 
             ref="inputRef"
@@ -359,11 +358,6 @@ onMounted(() => {
   gap: 8px;
   align-items: center;
   background-color: white;
-  border-top: 1px solid #e0e0e0;
-}
-
-.chat-input.with-emoji-panel {
-  border-top: none;
 }
 
 .input-wrapper {
