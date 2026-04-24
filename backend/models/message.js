@@ -1,7 +1,7 @@
 const { messageTypes, messageSenders, messageStatuses } = require('../utils/constants');
 
 class Message {
-  constructor({ id, content, sender, type, timestamp, status, sessionId, agentId, userId }) {
+  constructor({ id, content, sender, type, timestamp, status, sessionId, agentId, userId, recalled, recalledAt }) {
     this.id = id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.content = content;
     this.sender = sender;
@@ -11,6 +11,8 @@ class Message {
     this.sessionId = sessionId;
     this.agentId = agentId || null;
     this.userId = userId || null;
+    this.recalled = recalled || false;
+    this.recalledAt = recalledAt || null;
   }
 
   toJSON() {
@@ -23,7 +25,9 @@ class Message {
       status: this.status,
       sessionId: this.sessionId,
       agentId: this.agentId,
-      userId: this.userId
+      userId: this.userId,
+      recalled: this.recalled,
+      recalledAt: this.recalledAt
     };
   }
 
