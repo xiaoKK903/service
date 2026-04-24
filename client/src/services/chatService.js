@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { getVisitorInfo } from '../utils/userAgentParser';
 
 const WS_MESSAGE_TYPES = {
   HEARTBEAT: 'heartbeat',
@@ -209,9 +210,16 @@ export function useChatService() {
   }
 
   function createSession() {
+    const visitorInfo = getVisitorInfo();
     return send({
       type: WS_MESSAGE_TYPES.SESSION_CREATE,
-      payload: {}
+      payload: {
+        userAgent: visitorInfo.userAgent,
+        device: visitorInfo.device,
+        browser: visitorInfo.browser,
+        os: visitorInfo.os,
+        referrer: visitorInfo.referrer
+      }
     });
   }
 

@@ -35,18 +35,25 @@
     </div>
 
     <div class="chat-main">
-      <div class="chat-messages" ref="messagesContainerRef">
+      <div class="chat-messages" ref="messagesContainerRef" @scroll="handleScroll">
         <div v-if="!session" class="empty-state">
           <p>请选择一个会话开始聊天</p>
         </div>
 
-        <div v-else-if="messages.length === 0" class="empty-state">
+        <div v-else-if="displayedMessages.length === 0" class="empty-state">
           <p>暂无消息</p>
         </div>
 
         <div v-else>
+          <div v-if="hasMoreMessages && !isLoadingMore" class="load-more-indicator" @click="loadMoreMessages">
+            点击加载更多消息
+          </div>
+          <div v-if="isLoadingMore" class="loading-more-indicator">
+            加载中...
+          </div>
+          
           <MessageBubble 
-            v-for="message in messages" 
+            v-for="message in displayedMessages" 
             :key="message.id"
             :message="message"
             :show-status="message.sender === 'agent'"
@@ -73,7 +80,7 @@
 
       <div v-if="showNotesPanel" class="notes-panel">
         <div class="notes-header">
-          <span class="notes-title">会话备注</span>
+          <span class="notes-title">会话详情</span>
           <div class="notes-header-actions">
             <button 
               class="save-notes-btn"
@@ -85,7 +92,43 @@
             <button class="notes-close-btn" @click="toggleNotesPanel">×</button>
           </div>
         </div>
+        
+        <div v-if="session" class="visitor-info-section">
+          <div class="section-title">访客来源</div>
+          <div class="visitor-tags">
+            <span 
+              v-if="session.device" 
+              class="visitor-tag"
+              :style="{ backgroundColor: getDeviceColor(session.device) + '20', color: getDeviceColor(session.device), borderColor: getDeviceColor(session.device) + '40' }"
+            >
+              {{ getDeviceLabel(session.device) }}
+            </span>
+            <span v-if="session.browser" class="visitor-tag info-tag">
+              {{ session.browser }}
+            </span>
+            <span v-if="session.os" class="visitor-tag info-tag">
+              {{ session.os }}
+            </span>
+          </div>
+          
+          <div v-if="session.referrer" class="visitor-detail">
+            <span class="detail-label">访问来源:</span>
+            <span class="detail-value">{{ session.referrer }}</span>
+          </div>
+          
+          <div v-if="session.ip" class="visitor-detail">
+            <span class="detail-label">IP地址:</span>
+            <span class="detail-value">{{ session.ip }}</span>
+          </div>
+          
+          <div class="visitor-detail">
+            <span class="detail-label">会话时间:</span>
+            <span class="detail-value">{{ formatDate(session.createdAt) }}</span>
+          </div>
+        </div>
+        
         <div class="notes-content">
+          <div class="section-title">会话备注</div>
           <textarea 
             v-model="notesContent"
             placeholder="输入备注内容，点击保存按钮保存..."
@@ -153,11 +196,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import MessageBubble from './MessageBubble.vue';
 import QuickReplyPanel from './QuickReplyPanel.vue';
 import EmojiPanel from './EmojiPanel.vue';
 import { sessionStatuses } from '../types/messageTypes';
+import { getDeviceLabel, getDeviceColor } from '../../../utils/userAgentParser';
 
 const props = defineProps({
   session: {
@@ -208,8 +252,29 @@ const notesUpdatedAt = ref(null);
 const originalNotesContent = ref('');
 const isSavingNotes = ref(false);
 
+const PAGE_SIZE = 50;
+const displayedMessageCount = ref(PAGE_SIZE);
+const isLoadingMore = ref(false);
+const hasMoreMessages = ref(false);
+let scrollTopBeforeLoad = 0;
+let scrollHeightBeforeLoad = 0;
+
 const hasUnsavedChanges = computed(() => {
   return notesContent.value !== originalNotesContent.value;
+});
+
+const displayedMessages = computed(() => {
+  const allMessages = props.messages || [];
+  const totalCount = allMessages.length;
+  
+  hasMoreMessages.value = totalCount > displayedMessageCount.value;
+  
+  if (totalCount <= displayedMessageCount.value) {
+    return allMessages;
+  }
+  
+  const startIndex = totalCount - displayedMessageCount.value;
+  return allMessages.slice(startIndex);
 });
 
 const statusLabel = computed(() => {
@@ -241,6 +306,8 @@ watch(() => props.messages, () => {
 watch(() => props.session, (newSession, oldSession) => {
   scrollToBottom();
   inputValue.value = '';
+  displayedMessageCount.value = PAGE_SIZE;
+  isLoadingMore.value = false;
   
   if (newSession) {
     notesContent.value = newSession.notes || '';
@@ -258,6 +325,49 @@ function handleKeyPress(event) {
     event.preventDefault();
     handleSend();
   }
+}
+
+function handleScroll(event) {
+  const container = event.target;
+  const { scrollTop, scrollHeight, clientHeight } = container;
+  
+  if (scrollTop <= 20 && hasMoreMessages.value && !isLoadingMore.value) {
+    loadMoreMessages();
+  }
+}
+
+function loadMoreMessages() {
+  if (!hasMoreMessages.value || isLoadingMore.value) return;
+  
+  const container = messagesContainerRef.value;
+  if (!container) return;
+  
+  scrollTopBeforeLoad = container.scrollTop;
+  scrollHeightBeforeLoad = container.scrollHeight;
+  
+  isLoadingMore.value = true;
+  
+  nextTick(() => {
+    const totalMessages = props.messages.length;
+    const currentDisplayed = displayedMessageCount.value;
+    
+    const newDisplayedCount = Math.min(
+      currentDisplayed + PAGE_SIZE,
+      totalMessages
+    );
+    
+    displayedMessageCount.value = newDisplayedCount;
+    
+    nextTick(() => {
+      if (messagesContainerRef.value) {
+        const newScrollHeight = messagesContainerRef.value.scrollHeight;
+        const heightDiff = newScrollHeight - scrollHeightBeforeLoad;
+        messagesContainerRef.value.scrollTop = scrollTopBeforeLoad + heightDiff;
+      }
+      
+      isLoadingMore.value = false;
+    });
+  });
 }
 
 function handleInput() {
@@ -759,5 +869,84 @@ onMounted(() => {
 .unsaved-indicator {
   color: #fa8c16;
   font-weight: 500;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.visitor-info-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+.visitor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.visitor-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-weight: 500;
+}
+
+.visitor-tag.info-tag {
+  background-color: #f0f0f0;
+  color: #666;
+  border-color: #e0e0e0;
+}
+
+.visitor-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.visitor-detail .detail-label {
+  color: #999;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.visitor-detail .detail-value {
+  color: #333;
+  word-break: break-all;
+  flex: 1;
+}
+
+.load-more-indicator {
+  text-align: center;
+  padding: 12px;
+  color: #667eea;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-indicator:hover {
+  color: #5a67d8;
+  background-color: rgba(102, 126, 234, 0.05);
+}
+
+.loading-more-indicator {
+  text-align: center;
+  padding: 12px;
+  color: #999;
+  font-size: 12px;
 }
 </style>

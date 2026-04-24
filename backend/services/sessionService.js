@@ -25,7 +25,7 @@ class SessionService {
     storageService.saveSessions(this.sessions);
   }
 
-  createSession({ userId, userName, userAvatar }) {
+  createSession({ userId, userName, userAvatar, userAgent, device, browser, os, referrer, ip }) {
     const existingSession = this.getUserActiveSession(userId);
     if (existingSession) {
       return existingSession;
@@ -36,7 +36,13 @@ class SessionService {
       userName,
       userAvatar,
       status: sessionStatuses.WAITING,
-      unreadCount: 0
+      unreadCount: 0,
+      userAgent,
+      device,
+      browser,
+      os,
+      referrer,
+      ip
     });
 
     this.sessions.set(session.id, session);

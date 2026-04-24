@@ -201,7 +201,7 @@ class WebSocketService {
       return;
     }
 
-    const { userName, userAvatar } = payload;
+    const { userName, userAvatar, userAgent, device, browser, os, referrer, ip } = payload;
 
     let session = sessionService.getUserActiveSession(clientInfo.clientId);
     
@@ -209,7 +209,13 @@ class WebSocketService {
       session = sessionService.createSession({
         userId: clientInfo.clientId,
         userName: userName || clientInfo.clientName,
-        userAvatar
+        userAvatar,
+        userAgent,
+        device,
+        browser,
+        os,
+        referrer,
+        ip
       });
 
       const systemMessage = messageService.createMessage({
