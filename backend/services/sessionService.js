@@ -166,7 +166,8 @@ class SessionService {
     if (session) {
       session.notes = notes || '';
       session.notesUpdatedAt = Date.now();
-      storageService.updateSessionNotes(sessionId, session.notes);
+      this.saveToStorage();
+      console.log(`[SessionService] 会话备注已保存: ${sessionId}`);
       return session;
     }
     return null;

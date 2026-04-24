@@ -1174,17 +1174,10 @@ class WebSocketService {
       return;
     }
 
-    const session = sessionService.getSession(sessionId);
+    const session = sessionService.updateSessionNotes(sessionId, notes);
     if (!session) {
       this.sendError(ws, '会话不存在');
       return;
-    }
-
-    session.notes = notes || '';
-    session.notesUpdatedAt = Date.now();
-
-    if (typeof sessionService.updateSessionNotes === 'function') {
-      sessionService.updateSessionNotes(sessionId, session.notes);
     }
 
     this.send(ws, {
