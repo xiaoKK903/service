@@ -1,43 +1,48 @@
 <template>
   <div 
-    class="message-bubble" 
-    :class="[messageClass, { 'from-me': isFromMe, recalled: message.recalled }]"
-    @mouseenter="onMouseEnter"
-    @mouseleave="onMouseLeave"
+    class="message-bubble-wrapper"
+    :class="{ 'from-me': isFromMe, recalled: message.recalled }"
   >
-    <div v-if="message.recalled" class="recalled-message">
-      <span class="recalled-icon">📤</span>
-      <span class="recalled-text">你撤回了一条消息</span>
-      <span class="recalled-time">{{ formattedTime }}</span>
-    </div>
-    
-    <template v-else>
-      <div class="message-header">
-        <span class="message-sender">{{ senderName }}</span>
-        <span class="message-time">{{ formattedTime }}</span>
+    <div 
+      class="message-bubble" 
+      :class="[messageClass, { 'from-me': isFromMe, recalled: message.recalled }]"
+      @mouseenter="onMouseEnter"
+      @mouseleave="onMouseLeave"
+    >
+      <div v-if="message.recalled" class="recalled-message">
+        <span class="recalled-icon">📤</span>
+        <span class="recalled-text">你撤回了一条消息</span>
+        <span class="recalled-time">{{ formattedTime }}</span>
       </div>
       
-      <div class="message-content-wrapper">
-        <div class="message-content">{{ message.content }}</div>
-        
-        <div 
-          v-if="showRecallBtn" 
-          class="recall-btn"
-          @click="handleRecall"
-          @mouseenter="onBtnMouseEnter"
-          @mouseleave="onBtnMouseLeave"
-        >
-          撤回
+      <template v-else>
+        <div class="message-header">
+          <span class="message-sender">{{ senderName }}</span>
+          <span class="message-time">{{ formattedTime }}</span>
         </div>
-      </div>
-      
-      <div v-if="showStatus" class="message-status">{{ statusText }}</div>
-    </template>
+        
+        <div class="message-content-row">
+          <div 
+            v-if="showRecallBtn && isFromMe" 
+            class="recall-btn"
+            @click.stop="handleRecallClick"
+            @mouseenter.stop="onBtnMouseEnter"
+            @mouseleave.stop="onBtnMouseLeave"
+          >
+            撤回
+          </div>
+          
+          <div class="message-content">{{ message.content }}</div>
+        </div>
+        
+        <div v-if="showStatus" class="message-status">{{ statusText }}</div>
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { isFromAgent, isFromUser, isSystemMessage, formatTime } from '../types/messageTypes';
 
 const props = defineProps({
@@ -72,42 +77,15 @@ const isFromMe = computed(() => {
 });
 
 const canRecall = computed(() => {
-  console.log('[MessageBubble] canRecall check:', {
-    recalled: props.message.recalled,
-    isFromMe: isFromMe.value,
-    status: props.message.status,
-    timestamp: props.message.timestamp,
-    sender: props.message.sender,
-    messageId: props.message.id
-  });
-  
-  if (props.message.recalled) {
-    console.log('[MessageBubble] 消息已撤回，不能撤回');
-    return false;
-  }
-  if (!isFromMe.value) {
-    console.log('[MessageBubble] 不是自己的消息，不能撤回');
-    return false;
-  }
-  if (props.message.status === 'read') {
-    console.log('[MessageBubble] 消息已读，不能撤回');
-    return false;
-  }
+  if (props.message.recalled) return false;
+  if (!isFromMe.value) return false;
+  if (props.message.status === 'read') return false;
   
   const now = Date.now();
   const messageTime = new Date(props.message.timestamp).getTime() || 0;
   const elapsed = now - messageTime;
   
-  console.log('[MessageBubble] 时间检查:', {
-    now,
-    messageTime,
-    elapsed,
-    RECALL_WINDOW_MS
-  });
-  
-  const result = elapsed <= RECALL_WINDOW_MS;
-  console.log('[MessageBubble] canRecall 结果:', result);
-  return result;
+  return elapsed <= RECALL_WINDOW_MS;
 });
 
 const senderName = computed(() => {
@@ -145,64 +123,107 @@ const statusText = computed(() => {
 });
 
 function onMouseEnter() {
-  console.log('[MessageBubble] onMouseEnter, canRecall:', canRecall.value, 'message:', props.message.id, 'status:', props.message.status);
-  if (!canRecall.value) return;
+  console.log('=== [MessageBubble] onMouseEnter ===');
+  console.log('message.id:', props.message.id);
+  console.log('message.sender:', props.message.sender);
+  console.log('message.status:', props.message.status);
+  console.log('message.timestamp:', props.message.timestamp);
+  console.log('isFromMe:', isFromMe.value);
+  console.log('canRecall:', canRecall.value);
+  
+  if (!canRecall.value) {
+    console.log('=== 不能撤回，原因检查 ===');
+    console.log('recalled:', props.message.recalled);
+    console.log('status is read:', props.message.status === 'read');
+    const now = Date.now();
+    const messageTime = new Date(props.message.timestamp).getTime() || 0;
+    const elapsed = now - messageTime;
+    console.log('elapsed ms:', elapsed);
+    console.log('RECALL_WINDOW_MS:', RECALL_WINDOW_MS);
+    console.log('elapsed <= RECALL_WINDOW_MS:', elapsed <= RECALL_WINDOW_MS);
+    return;
+  }
+  
   clearTimeout(hoverTimer.value);
   showRecallBtn.value = true;
+  console.log('=== 显示撤回按钮 ===');
 }
 
 function onMouseLeave() {
-  console.log('[MessageBubble] onMouseLeave, btnHovered:', btnHovered.value);
-  if (btnHovered.value) return;
+  console.log('=== [MessageBubble] onMouseLeave ===');
+  console.log('btnHovered:', btnHovered.value);
+  
+  if (btnHovered.value) {
+    console.log('=== 鼠标在按钮上，不隐藏 ===');
+    return;
+  }
+  
   hoverTimer.value = setTimeout(() => {
     showRecallBtn.value = false;
+    console.log('=== 隐藏撤回按钮 ===');
   }, 300);
 }
 
 function onBtnMouseEnter() {
-  console.log('[MessageBubble] onBtnMouseEnter');
+  console.log('=== [MessageBubble] onBtnMouseEnter ===');
   clearTimeout(hoverTimer.value);
   btnHovered.value = true;
+  console.log('=== 鼠标在撤回按钮上 ===');
 }
 
 function onBtnMouseLeave() {
-  console.log('[MessageBubble] onBtnMouseLeave');
+  console.log('=== [MessageBubble] onBtnMouseLeave ===');
   btnHovered.value = false;
   hoverTimer.value = setTimeout(() => {
     showRecallBtn.value = false;
+    console.log('=== 鼠标离开按钮，隐藏 ===');
   }, 300);
 }
 
-function handleRecall($event) {
-  console.log('[MessageBubble] handleRecall 被点击了! message:', props.message.id);
-  if ($event && $event.stopPropagation) {
-    $event.stopPropagation();
-  }
-  console.log('[MessageBubble] 发出 recall 事件:', props.message);
+function handleRecallClick() {
+  console.log('========================================');
+  console.log('=== [MessageBubble] 撤回按钮被点击了！ ===');
+  console.log('========================================');
+  console.log('message.id:', props.message.id);
+  console.log('message:', props.message);
+  
+  alert('撤回按钮被点击了！message.id: ' + props.message.id);
+  
   emit('recall', props.message);
+  console.log('=== 已发出 recall 事件 ===');
 }
+
+onMounted(() => {
+  console.log('=== [MessageBubble] 组件挂载 ===');
+  console.log('message:', props.message);
+});
 </script>
 
 <style scoped>
-.message-bubble {
+.message-bubble-wrapper {
   margin-bottom: 16px;
   max-width: 80%;
+  clear: both;
+}
+
+.message-bubble-wrapper.from-me {
+  margin-left: auto;
+}
+
+.message-bubble {
   position: relative;
 }
 
 .message-bubble.from-agent {
-  margin-left: auto;
+  text-align: right;
 }
 
 .message-bubble.from-user {
-  margin-right: auto;
+  text-align: left;
 }
 
 .message-bubble.from-system {
-  margin-left: auto;
-  margin-right: auto;
   text-align: center;
-  max-width: 100%;
 }
 
 .message-header {
@@ -230,14 +251,14 @@ function handleRecall($event) {
   font-size: 10px;
 }
 
-.message-content-wrapper {
-  position: relative;
-  display: inline-block;
+.message-content-row {
+  display: inline-flex;
+  align-items: center;
   max-width: 100%;
 }
 
-.message-bubble.from-agent .message-content-wrapper {
-  float: right;
+.message-bubble.from-agent .message-content-row {
+  flex-direction: row-reverse;
 }
 
 .message-content {
@@ -246,6 +267,7 @@ function handleRecall($event) {
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
+  max-width: 100%;
 }
 
 .message-bubble.from-agent .message-content {
@@ -281,33 +303,35 @@ function handleRecall($event) {
 }
 
 .recall-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 4px 10px;
+  padding: 6px 12px;
   background-color: #ff4d4f;
   color: white;
   font-size: 12px;
   border-radius: 4px;
   cursor: pointer;
-  z-index: 10;
   white-space: nowrap;
   transition: all 0.2s;
   box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
+  z-index: 100;
+  margin-right: 8px;
+  user-select: none;
+  border: 1px solid #ff4d4f;
+  font-weight: 500;
 }
 
 .message-bubble.from-agent .recall-btn {
-  right: 100%;
-  margin-right: 8px;
-}
-
-.message-bubble.from-user .recall-btn {
-  left: 100%;
+  margin-right: 0;
   margin-left: 8px;
 }
 
 .recall-btn:hover {
   background-color: #ff7875;
+  border-color: #ff7875;
+}
+
+.recall-btn:active {
+  background-color: #d9363e;
+  transform: scale(0.95);
 }
 
 .recalled-message {

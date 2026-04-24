@@ -22,44 +22,54 @@
       <div 
         v-for="message in messages" 
         :key="message.id"
-        :class="['message-item', isFromMe(message.sender) ? 'from-me' : 'from-server', { recalled: message.recalled }]"
-        @mouseenter="onMessageMouseEnter(message.id)"
-        @mouseleave="onMessageMouseLeave(message.id)"
+        class="message-wrapper"
+        :class="{ 'from-me': isFromMe(message.sender), 'from-server': !isFromMe(message.sender), recalled: message.recalled }"
       >
-        <div v-if="message.recalled" class="recalled-message">
-          <span class="recalled-icon">📤</span>
-          <span class="recalled-text">你撤回了一条消息</span>
-          <span class="recalled-time">{{ formatTime(message.timestamp) }}</span>
+        <div 
+          class="message-item"
+          @mouseenter="onMessageMouseEnter(message.id)"
+          @mouseleave="onMessageMouseLeave(message.id)"
+        >
+          <div v-if="message.recalled" class="recalled-message">
+            <span class="recalled-icon">📤</span>
+            <span class="recalled-text">你撤回了一条消息</span>
+            <span class="recalled-time">{{ formatTime(message.timestamp) }}</span>
+          </div>
+          
+          <template v-else>
+            <div class="message-sender">
+              {{ isFromMe(message.sender) ? '我' : getSenderName(message.sender) }}
+              <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+            </div>
+            
+            <div class="message-content-row">
+              <div 
+                v-if="shouldShowRecallBtn(message)" 
+                class="recall-btn"
+                @click.stop="handleRecallClick(message)"
+                @mouseenter.stop="onBtnMouseEnter(message.id)"
+                @mouseleave.stop="onBtnMouseLeave(message.id)"
+              >
+                撤回
+              </div>
+              
+              <div class="message-bubble">
+                {{ message.content }}
+              </div>
+            </div>
+            
+            <div v-if="isFromMe(message.sender)" class="message-status">
+              {{ getMessageStatusText(message.status) }}
+            </div>
+          </template>
         </div>
-        
-        <template v-else>
-          <div class="message-sender">
-            {{ isFromMe(message.sender) ? '我' : getSenderName(message.sender) }}
-            <span class="message-time">{{ formatTime(message.timestamp) }}</span>
-          </div>
-          <div class="message-content-wrapper">
-            <div class="message-bubble">
-              {{ message.content }}
-            </div>
-            <div 
-              v-if="shouldShowRecallBtn(message)" 
-              class="recall-btn"
-              @click.stop="handleRecall(message)"
-              @mouseenter="onBtnMouseEnter(message.id)"
-              @mouseleave="onBtnMouseLeave(message.id)"
-            >
-              撤回
-            </div>
-          </div>
-          <div v-if="isFromMe(message.sender)" class="message-status">
-            {{ getMessageStatusText(message.status) }}
-          </div>
-        </template>
       </div>
       
-      <div v-if="isSending" class="message-item from-me">
-        <div class="message-sender">我</div>
-        <div class="message-bubble">发送中...</div>
+      <div v-if="isSending" class="message-wrapper from-me">
+        <div class="message-item">
+          <div class="message-sender">我</div>
+          <div class="message-bubble">发送中...</div>
+        </div>
       </div>
       
       <div v-if="!isConnected" class="connecting-message">
@@ -113,6 +123,7 @@ const inputMessage = ref('');
 
 const hoveredMessageId = ref(null);
 const btnHoveredMessageId = ref(null);
+const hoverTimer = ref(null);
 
 const isConnected = computed(() => {
   return chatStore.canSendMessage.value;
@@ -194,45 +205,82 @@ function canRecallMessage(message) {
   if (message.status === messageStatuses.READ) return false;
   
   const now = Date.now();
-  const messageTime = message.timestamp || 0;
+  const messageTime = new Date(message.timestamp).getTime() || 0;
   const elapsed = now - messageTime;
   
   return elapsed <= RECALL_WINDOW_MS;
 }
 
 function shouldShowRecallBtn(message) {
-  console.log('[ChatView] shouldShowRecallBtn, message:', message.id, 'canRecall:', canRecallMessage(message), 'hoveredId:', hoveredMessageId.value, 'btnHoveredId:', btnHoveredMessageId.value);
   if (!canRecallMessage(message)) return false;
   return hoveredMessageId.value === message.id || btnHoveredMessageId.value === message.id;
 }
 
 function onMessageMouseEnter(messageId) {
-  console.log('[ChatView] onMessageMouseEnter:', messageId);
+  console.log('=== [ChatView] onMessageMouseEnter ===');
+  console.log('messageId:', messageId);
+  
+  const message = messages.value.find(m => m.id === messageId);
+  if (message) {
+    console.log('canRecall:', canRecallMessage(message));
+    console.log('message.recalled:', message.recalled);
+    console.log('isFromMe:', isFromMe(message.sender));
+    console.log('message.status:', message.status);
+  }
+  
+  clearTimeout(hoverTimer.value);
   hoveredMessageId.value = messageId;
+  console.log('=== 显示撤回按钮 ===');
 }
 
 function onMessageMouseLeave(messageId) {
-  console.log('[ChatView] onMessageMouseLeave:', messageId, 'btnHovered:', btnHoveredMessageId.value);
-  if (btnHoveredMessageId.value === messageId) return;
-  hoveredMessageId.value = null;
+  console.log('=== [ChatView] onMessageMouseLeave ===');
+  console.log('messageId:', messageId);
+  console.log('btnHoveredMessageId:', btnHoveredMessageId.value);
+  
+  if (btnHoveredMessageId.value === messageId) {
+    console.log('=== 鼠标在按钮上，不隐藏 ===');
+    return;
+  }
+  
+  hoverTimer.value = setTimeout(() => {
+    hoveredMessageId.value = null;
+    console.log('=== 隐藏撤回按钮 ===');
+  }, 300);
 }
 
 function onBtnMouseEnter(messageId) {
-  console.log('[ChatView] onBtnMouseEnter:', messageId);
+  console.log('=== [ChatView] onBtnMouseEnter ===');
+  console.log('messageId:', messageId);
+  clearTimeout(hoverTimer.value);
   btnHoveredMessageId.value = messageId;
+  console.log('=== 鼠标在撤回按钮上 ===');
 }
 
 function onBtnMouseLeave(messageId) {
-  console.log('[ChatView] onBtnMouseLeave:', messageId);
+  console.log('=== [ChatView] onBtnMouseLeave ===');
+  console.log('messageId:', messageId);
   btnHoveredMessageId.value = null;
-  hoveredMessageId.value = null;
+  hoverTimer.value = setTimeout(() => {
+    hoveredMessageId.value = null;
+    console.log('=== 鼠标离开按钮，隐藏 ===');
+  }, 300);
 }
 
-function handleRecall(message) {
-  console.log('[ChatView] handleRecall 被点击了! message:', message);
-  console.log('[ChatView] currentSession:', currentSession.value?.id);
+function handleRecallClick(message) {
+  console.log('========================================');
+  console.log('=== [ChatView] 撤回按钮被点击了！ ===');
+  console.log('========================================');
+  console.log('message:', message);
+  console.log('currentSession:', currentSession.value);
+  
+  alert('撤回按钮被点击了！message.id: ' + message.id);
+  
   if (message && currentSession.value?.id) {
+    console.log('=== 调用 chatStore.recallMessage ===');
     chatStore.recallMessage(message.id, currentSession.value.id);
+  } else {
+    console.log('=== 缺少必要参数 ===');
   }
 }
 
@@ -374,18 +422,30 @@ onMounted(() => {
   background-color: #f9f9f9;
 }
 
-.message-item {
+.message-wrapper {
   margin-bottom: 16px;
   max-width: 80%;
-  position: relative;
+  clear: both;
 }
 
-.message-item.from-me {
+.message-wrapper.from-me {
   margin-left: auto;
 }
 
-.message-item.from-server {
+.message-wrapper.from-server {
   margin-right: auto;
+}
+
+.message-item {
+  position: relative;
+}
+
+.message-wrapper.from-me .message-item {
+  text-align: right;
+}
+
+.message-wrapper.from-server .message-item {
+  text-align: left;
 }
 
 .message-sender {
@@ -396,7 +456,7 @@ onMounted(() => {
   align-items: center;
 }
 
-.message-item.from-me .message-sender {
+.message-wrapper.from-me .message-sender {
   justify-content: flex-end;
 }
 
@@ -405,14 +465,14 @@ onMounted(() => {
   font-size: 10px;
 }
 
-.message-content-wrapper {
-  position: relative;
-  display: inline-block;
+.message-content-row {
+  display: inline-flex;
+  align-items: center;
   max-width: 100%;
 }
 
-.message-item.from-me .message-content-wrapper {
-  float: right;
+.message-wrapper.from-me .message-content-row {
+  flex-direction: row-reverse;
 }
 
 .message-bubble {
@@ -421,6 +481,7 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.5;
   word-wrap: break-word;
+  max-width: 100%;
 }
 
 .from-me .message-bubble {
@@ -444,33 +505,35 @@ onMounted(() => {
 }
 
 .recall-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 4px 10px;
+  padding: 6px 12px;
   background-color: #ff4d4f;
   color: white;
   font-size: 12px;
   border-radius: 4px;
   cursor: pointer;
-  z-index: 10;
   white-space: nowrap;
   transition: all 0.2s;
   box-shadow: 0 2px 4px rgba(255, 77, 79, 0.3);
-}
-
-.message-item.from-me .recall-btn {
-  right: 100%;
+  z-index: 100;
   margin-right: 8px;
+  user-select: none;
+  border: 1px solid #ff4d4f;
+  font-weight: 500;
 }
 
-.message-item.from-server .recall-btn {
-  left: 100%;
+.message-wrapper.from-me .recall-btn {
+  margin-right: 0;
   margin-left: 8px;
 }
 
 .recall-btn:hover {
   background-color: #ff7875;
+  border-color: #ff7875;
+}
+
+.recall-btn:active {
+  background-color: #d9363e;
+  transform: scale(0.95);
 }
 
 .recalled-message {
@@ -484,7 +547,7 @@ onMounted(() => {
   font-style: italic;
 }
 
-.message-item.from-me .recalled-message {
+.message-wrapper.from-me .recalled-message {
   justify-content: flex-end;
 }
 
