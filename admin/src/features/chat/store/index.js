@@ -38,6 +38,7 @@ export function useChatStore() {
   const quickReplies = computed(() => businessLayer.quickReplies.value);
   const sortedQuickReplies = computed(() => businessLayer.sortedQuickReplies.value);
   const currentAgentStatus = computed(() => businessLayer.currentAgentStatus.value);
+  const sensitiveWords = computed(() => businessLayer.sensitiveWords.value);
 
   const constants = {
     sessionStatuses,
@@ -128,6 +129,22 @@ export function useChatStore() {
     return businessLayer.recallMessage(messageId, sessionId);
   }
 
+  function getSensitiveWordList() {
+    return businessLayer.getSensitiveWordList();
+  }
+
+  function createSensitiveWord({ word, category, sortOrder }) {
+    return businessLayer.createSensitiveWord({ word, category, sortOrder });
+  }
+
+  function updateSensitiveWord({ id, word, category, sortOrder }) {
+    return businessLayer.updateSensitiveWord({ id, word, category, sortOrder });
+  }
+
+  function deleteSensitiveWord(id) {
+    return businessLayer.deleteSensitiveWord(id);
+  }
+
   return {
     state,
     getters,
@@ -147,6 +164,7 @@ export function useChatStore() {
     quickReplies,
     sortedQuickReplies,
     currentAgentStatus,
+    sensitiveWords,
     constants,
     initialize,
     selectSession,
@@ -164,7 +182,11 @@ export function useChatStore() {
     updateQuickReply,
     deleteQuickReply,
     updateAgentStatus,
-    recallMessage
+    recallMessage,
+    getSensitiveWordList,
+    createSensitiveWord,
+    updateSensitiveWord,
+    deleteSensitiveWord
   };
 }
 

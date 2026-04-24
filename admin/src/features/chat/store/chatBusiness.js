@@ -10,6 +10,8 @@ const isInitialized = ref(false);
 const quickReplies = ref([]);
 const quickRepliesInitialized = ref(false);
 const currentAgentStatus = ref(agentStatuses.IDLE);
+const sensitiveWords = ref([]);
+const sensitiveWordsInitialized = ref(false);
 
 export function useChatBusiness() {
   const dataLayer = useChatData();
@@ -108,6 +110,11 @@ export function useChatBusiness() {
         chatService.getQuickReplyList();
         quickRepliesInitialized.value = true;
       }
+      console.log('认证成功，获取敏感词列表...');
+      if (!sensitiveWordsInitialized.value) {
+        chatService.getSensitiveWordList();
+        sensitiveWordsInitialized.value = true;
+      }
     });
 
     chatService.on(WS_MESSAGE_TYPES.SESSION_LIST, (payload) => {
@@ -199,6 +206,25 @@ export function useChatBusiness() {
 
     chatService.on(WS_MESSAGE_TYPES.MESSAGE_RECALL_FAILED, (payload) => {
       console.error('[chatBusiness] 撤回失败:', payload.reason);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_LIST_RESPONSE, (payload) => {
+      if (payload && payload.words) {
+        sensitiveWords.value = payload.words;
+        console.log('[chatBusiness] 敏感词列表:', payload.words.length, '条');
+      }
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_CREATED, (payload) => {
+      console.log('[chatBusiness] 敏感词创建成功:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_UPDATED, (payload) => {
+      console.log('[chatBusiness] 敏感词更新成功:', payload);
+    });
+
+    chatService.on(WS_MESSAGE_TYPES.SENSITIVE_WORD_DELETED, (payload) => {
+      console.log('[chatBusiness] 敏感词删除成功:', payload);
     });
 
     chatService.on(WS_MESSAGE_TYPES.ERROR, (payload) => {
@@ -373,6 +399,26 @@ export function useChatBusiness() {
     return chatService.recallMessage(messageId, sessionId);
   }
 
+  function getSensitiveWordList() {
+    console.log('chatBusiness getSensitiveWordList');
+    return chatService.getSensitiveWordList();
+  }
+
+  function createSensitiveWord({ word, category, sortOrder }) {
+    console.log('chatBusiness createSensitiveWord:', { word, category, sortOrder });
+    return chatService.createSensitiveWord(word, category, sortOrder);
+  }
+
+  function updateSensitiveWord({ id, word, category, sortOrder }) {
+    console.log('chatBusiness updateSensitiveWord:', { id, word, category, sortOrder });
+    return chatService.updateSensitiveWord(id, { word, category, sortOrder });
+  }
+
+  function deleteSensitiveWord(id) {
+    console.log('chatBusiness deleteSensitiveWord:', id);
+    return chatService.deleteSensitiveWord(id);
+  }
+
   return {
     selectedSessionId,
     selectedSession,
@@ -386,6 +432,7 @@ export function useChatBusiness() {
     quickRepliesInitialized,
     currentAgentStatus,
     agentStatuses,
+    sensitiveWords,
     initialize,
     selectSession,
     acceptSession,
@@ -399,7 +446,11 @@ export function useChatBusiness() {
     updateQuickReply,
     deleteQuickReply,
     updateAgentStatus,
-    recallMessage
+    recallMessage,
+    getSensitiveWordList,
+    createSensitiveWord,
+    updateSensitiveWord,
+    deleteSensitiveWord
   };
 }
 

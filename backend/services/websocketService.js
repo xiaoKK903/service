@@ -7,6 +7,7 @@ const agentService = require('./agentService');
 const queueService = require('./queueService');
 const readReceiptService = require('./readReceiptService');
 const recallService = require('./recallService');
+const sensitiveWordService = require('./sensitiveWordService');
 
 class WebSocketService {
   constructor() {
@@ -104,6 +105,22 @@ class WebSocketService {
         
         case wsMessageTypes.MESSAGE_RECALL:
           this.handleMessageRecall(ws, payload);
+          break;
+        
+        case wsMessageTypes.SENSITIVE_WORD_LIST:
+          this.handleSensitiveWordList(ws);
+          break;
+        
+        case wsMessageTypes.SENSITIVE_WORD_CREATE:
+          this.handleSensitiveWordCreate(ws, payload);
+          break;
+        
+        case wsMessageTypes.SENSITIVE_WORD_UPDATE:
+          this.handleSensitiveWordUpdate(ws, payload);
+          break;
+        
+        case wsMessageTypes.SENSITIVE_WORD_DELETE:
+          this.handleSensitiveWordDelete(ws, payload);
           break;
         
         default:
@@ -891,6 +908,157 @@ class WebSocketService {
         payload: result.message
       });
     }
+  }
+
+  handleSensitiveWordList(ws) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    if (clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '无权限');
+      return;
+    }
+
+    const words = sensitiveWordService.getAllSensitiveWords();
+    this.send(ws, {
+      type: wsMessageTypes.SENSITIVE_WORD_LIST_RESPONSE,
+      payload: {
+        words: words.map(w => w.toJSON()),
+        count: words.length
+      }
+    });
+    console.log(`[WebSocketService] 敏感词列表: ${words.length} 条`);
+  }
+
+  handleSensitiveWordCreate(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    if (clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '无权限');
+      return;
+    }
+
+    const { word, category, sortOrder } = payload;
+    if (!word || !word.trim()) {
+      this.sendError(ws, '敏感词不能为空');
+      return;
+    }
+
+    const result = sensitiveWordService.createSensitiveWord({
+      word: word.trim(),
+      category,
+      sortOrder
+    });
+
+    if (!result) {
+      this.sendError(ws, '敏感词已存在');
+      return;
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.SENSITIVE_WORD_CREATED,
+      payload: result.toJSON()
+    });
+
+    this.broadcastSensitiveWordUpdate();
+    console.log(`[WebSocketService] 敏感词创建成功: ${result.word}`);
+  }
+
+  handleSensitiveWordUpdate(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    if (clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '无权限');
+      return;
+    }
+
+    const { id, word, category, sortOrder } = payload;
+    if (!id) {
+      this.sendError(ws, '缺少敏感词ID');
+      return;
+    }
+
+    const result = sensitiveWordService.updateSensitiveWord(id, {
+      word: word ? word.trim() : undefined,
+      category,
+      sortOrder
+    });
+
+    if (!result) {
+      this.sendError(ws, '敏感词不存在或已被占用');
+      return;
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.SENSITIVE_WORD_UPDATED,
+      payload: result.toJSON()
+    });
+
+    this.broadcastSensitiveWordUpdate();
+    console.log(`[WebSocketService] 敏感词更新成功: ${result.word}`);
+  }
+
+  handleSensitiveWordDelete(ws, payload) {
+    const clientInfo = this.connectionToClient.get(ws);
+    if (!clientInfo) {
+      this.sendError(ws, '未认证');
+      return;
+    }
+
+    if (clientInfo.clientType !== clientTypes.AGENT) {
+      this.sendError(ws, '无权限');
+      return;
+    }
+
+    const { id } = payload;
+    if (!id) {
+      this.sendError(ws, '缺少敏感词ID');
+      return;
+    }
+
+    const word = sensitiveWordService.getSensitiveWordById(id);
+    const result = sensitiveWordService.deleteSensitiveWord(id);
+
+    if (!result) {
+      this.sendError(ws, '敏感词不存在');
+      return;
+    }
+
+    this.send(ws, {
+      type: wsMessageTypes.SENSITIVE_WORD_DELETED,
+      payload: { id, word: word ? word.word : '' }
+    });
+
+    this.broadcastSensitiveWordUpdate();
+    console.log(`[WebSocketService] 敏感词删除成功: ${word ? word.word : id}`);
+  }
+
+  broadcastSensitiveWordUpdate() {
+    const words = sensitiveWordService.getAllSensitiveWords();
+    this.agentConnections.forEach((connections) => {
+      connections.forEach((ws) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          this.send(ws, {
+            type: wsMessageTypes.SENSITIVE_WORD_LIST_RESPONSE,
+            payload: {
+              words: words.map(w => w.toJSON()),
+              count: words.length
+            }
+          });
+        }
+      });
+    });
   }
 }
 

@@ -69,6 +69,15 @@ module.exports = {
     MESSAGE_RECALLED: 'message_recalled',
     MESSAGE_RECALL_FAILED: 'message_recall_failed',
     
+    SENSITIVE_WORD_LIST: 'sensitive_word_list',
+    SENSITIVE_WORD_LIST_RESPONSE: 'sensitive_word_list_response',
+    SENSITIVE_WORD_CREATE: 'sensitive_word_create',
+    SENSITIVE_WORD_CREATED: 'sensitive_word_created',
+    SENSITIVE_WORD_UPDATE: 'sensitive_word_update',
+    SENSITIVE_WORD_UPDATED: 'sensitive_word_updated',
+    SENSITIVE_WORD_DELETE: 'sensitive_word_delete',
+    SENSITIVE_WORD_DELETED: 'sensitive_word_deleted',
+    
     ERROR: 'error'
   },
 

@@ -22,6 +22,9 @@
         <span class="unread-count" v-if="totalUnreadCount > 0">
           未读消息: {{ totalUnreadCount }}
         </span>
+        <button class="manager-btn" @click="showSensitiveWordManager = true">
+          敏感词管理
+        </button>
         <span class="ws-status" :class="{ connected: isWebSocketConnected }">
           {{ isWebSocketConnected ? '已连接' : '未连接' }}
         </span>
@@ -61,6 +64,15 @@
       @update="handleUpdateQuickReply"
       @delete="handleDeleteQuickReply"
     />
+
+    <SensitiveWordManager 
+      :visible="showSensitiveWordManager"
+      :sensitive-words="sensitiveWords"
+      @close="showSensitiveWordManager = false"
+      @create="handleCreateSensitiveWord"
+      @update="handleUpdateSensitiveWord"
+      @delete="handleDeleteSensitiveWord"
+    />
   </div>
 </template>
 
@@ -69,11 +81,13 @@ import { ref, computed, watch, onMounted } from 'vue';
 import SessionList from '../components/SessionList.vue';
 import ChatWindow from '../components/ChatWindow.vue';
 import QuickReplyManager from '../components/QuickReplyManager.vue';
+import SensitiveWordManager from '../components/SensitiveWordManager.vue';
 import { useChatStore } from '../store';
 
 const store = useChatStore();
 
 const showQuickReplyManager = ref(false);
+const showSensitiveWordManager = ref(false);
 
 const sessions = computed(() => store.sessions.value);
 const selectedSessionId = computed(() => store.selectedSessionId.value);
@@ -84,6 +98,7 @@ const isSending = computed(() => store.isSending.value);
 const canSendMessage = computed(() => store.canSendMessage.value);
 const isWebSocketConnected = computed(() => store.isWebSocketConnected.value);
 const quickReplies = computed(() => store.sortedQuickReplies.value);
+const sensitiveWords = computed(() => store.sensitiveWords.value);
 
 const waitingCount = computed(() => store.waitingSessions.value.length);
 const activeCount = computed(() => store.activeSessions.value.length);
@@ -166,6 +181,21 @@ function handleMessageRecall(message) {
   } else {
     console.log('AdminView handleMessageRecall: 缺少必要参数', { message, sessionId });
   }
+}
+
+function handleCreateSensitiveWord(data) {
+  console.log('AdminView handleCreateSensitiveWord:', data);
+  store.createSensitiveWord(data);
+}
+
+function handleUpdateSensitiveWord(data) {
+  console.log('AdminView handleUpdateSensitiveWord:', data);
+  store.updateSensitiveWord(data);
+}
+
+function handleDeleteSensitiveWord(id) {
+  console.log('AdminView handleDeleteSensitiveWord:', id);
+  store.deleteSensitiveWord(id);
 }
 
 onMounted(() => {
@@ -258,6 +288,22 @@ onMounted(() => {
   padding: 4px 12px;
   background-color: rgba(255, 77, 79, 0.9);
   border-radius: 12px;
+}
+
+.manager-btn {
+  padding: 6px 14px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.manager-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .ws-status {
